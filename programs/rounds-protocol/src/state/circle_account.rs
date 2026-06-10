@@ -129,6 +129,16 @@ pub struct CircleAccount {
     /// Only relevant while state = Open.
     pub cancel_deadline_slot: u64,
 
+    /// Slot at which the circle transitioned to Active.
+    /// Set in start_circle. Zero before the circle starts.
+    /// Used to derive the full circle timeline on the frontend.
+    pub started_at_slot: u64,
+
+    /// Slot at which the final cycle was disbursed.
+    /// Set in disburse_pot when state transitions to Completed.
+    /// Zero until circle completes.
+    pub completed_at_slot: u64,
+
     /// PDA bump seed. Stored to avoid recomputation.
     pub bump: u8,
 }
@@ -146,8 +156,10 @@ impl CircleAccount {
     /// current_cycle (u8):           1
     /// cycle_deadline_slot (u64):    8
     /// cancel_deadline_slot (u64):   8
+    /// started_at_slot (u64):        8  ← new
+    /// completed_at_slot (u64):      8  ← new
     /// bump (u8):                    1
     /// ─────────────────────────────
-    /// Total:                       79
-    pub const LEN: usize = 8 + 8 + 1 + 1 + 1 + 1 + 8 + 32 + 1 + 1 + 8 + 8 + 1;
+    /// Total:                       95
+    pub const LEN: usize = 8 + 8 + 1 + 1 + 1 + 1 + 8 + 32 + 1 + 1 + 8 + 8 + 8 + 8 + 1;
 }

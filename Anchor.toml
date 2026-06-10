@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-rounds_protocol = "F4kSCH4tGiakWt25cGqKqrEjEobafeZVre2PJqcEfspg"
+rounds_protocol = "7BBvnkQ4AKMFU6EfWvScSqi69eu9TjLoDzpmzG8ZeFhN"
 
 [provider]
 cluster = "localnet"

@@ -61,6 +61,9 @@ pub enum RoundsError {
     #[msg("This circle is full. No more members can join.")]
     CircleFull,
 
+    #[msg("Cycle 1 contributions were collected at join time and cannot be paid again.")]
+    Cycle1AlreadyFunded,
+
     #[msg("You have already joined this circle.")]
     AlreadyMember,
 
