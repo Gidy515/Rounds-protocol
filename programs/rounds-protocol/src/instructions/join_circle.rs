@@ -129,18 +129,6 @@ pub struct JoinCircle<'info> {
     )]
     pub pot_vault: InterfaceAccount<'info, TokenAccount>,
 
-    /// Position 1 member's token account.
-    /// Receives the 10% premium from this joining member.
-    /// Only required when the joining member is NOT position 1.
-    /// When joining member IS position 1 this account is
-    /// their own token account — premium amount is zero
-    /// so no transfer occurs.
-    ///
-    /// CHECK: validated in handler logic — only used when
-    /// position > 1 and premium_amount > 0.
-    #[account(mut)]
-    pub position1_token_account: InterfaceAccount<'info, TokenAccount>,
-
     /// USDC mint — used for transfer_checked calls.
     /// transfer_checked requires the mint to verify decimals.
     pub usdc_mint: InterfaceAccount<'info, Mint>,
@@ -241,10 +229,16 @@ pub fn handler(ctx: Context<JoinCircle>) -> Result<()> {
         )?;
     }
 
-    // ── Step 8: Transfer contribution → PotVault ──────────
-    // Base contribution goes into the pot for cycle 1.
-    // This prefunds the pot — cycle 1 is already covered
-    // for this member at join time.
+    // ── Step 8: Transfer contribution + premium → PotVault ─
+    // For position 1: contribution_amount only (no premium)
+    // For positions 2-N: contribution_amount + premium_amount
+    //
+    // Premium now sits in PotVault alongside the contribution.
+    // Position 1 receives their compensation when they receive
+    // the cycle 1 pot — which contains all premiums from all
+    // joining members. This is fairer than direct routing
+    // because premiums remain in a protocol-controlled vault
+    // and are fully refundable if the circle is cancelled.
     transfer_checked(
         CpiContext::new(
             ctx.accounts.token_program.key(),
@@ -255,31 +249,11 @@ pub fn handler(ctx: Context<JoinCircle>) -> Result<()> {
                 authority: ctx.accounts.member.to_account_info(),
             },
         ),
-        circle.contribution_amount,
+        first_round_payment, // contribution_amount + premium_amount
         decimals,
     )?;
 
-    // ── Step 9: Route premium → position 1 wallet ─────────
-    // Premium goes DIRECTLY to position 1's wallet —
-    // not into any vault. It is theirs immediately.
-    // Only executes for positions 2 through N.
-    if premium_amount > 0 {
-        transfer_checked(
-            CpiContext::new(
-                ctx.accounts.token_program.key(),
-                TransferChecked {
-                    from:      ctx.accounts.member_token_account.to_account_info(),
-                    mint:      ctx.accounts.usdc_mint.to_account_info(),
-                    to:        ctx.accounts.position1_token_account.to_account_info(),
-                    authority: ctx.accounts.member.to_account_info(),
-                },
-            ),
-            premium_amount,
-            decimals,
-        )?;
-    }
-
-    // ── Step 10: Initialise MemberAccount ─────────────────
+    // ── Step 9: Initialise MemberAccount ─────────────────
     let member_acc              = &mut ctx.accounts.member_account;
     member_acc.circle           = circle_account_key;
     member_acc.member           = ctx.accounts.member.key();
@@ -290,7 +264,7 @@ pub fn handler(ctx: Context<JoinCircle>) -> Result<()> {
     member_acc.is_kicked         = false;
     member_acc.bump              = ctx.bumps.member_account;
 
-    // ── Step 11: Initialise CollateralRecord ───────────────
+    // ── Step 10: Initialise CollateralRecord ───────────────
     // total_locked is set once here and never changes.
     // It is the reference point for claim_collateral:
     //   claimable = total_locked - total_slashed
@@ -303,7 +277,7 @@ pub fn handler(ctx: Context<JoinCircle>) -> Result<()> {
     col_rec.claimed        = false;
     col_rec.bump           = ctx.bumps.collateral_record;
 
-    // ── Step 12: Update CircleAccount ─────────────────────
+    // ── Step 11: Update CircleAccount ─────────────────────
     // Capture key before mutable borrow of circle
 
     circle.current_members = circle.current_members
@@ -314,7 +288,7 @@ pub fn handler(ctx: Context<JoinCircle>) -> Result<()> {
         .checked_add(1)
         .ok_or(RoundsError::MathOverflow)?;
 
-    // ── Step 13: Transition OPEN → READY if full ──────────
+    // ── Step 12: Transition OPEN → READY if full ──────────
     // The last member to join triggers this automatically
     // in the same transaction — no separate instruction needed.
     if circle.current_members == circle.total_members {

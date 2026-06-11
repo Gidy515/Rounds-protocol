@@ -199,9 +199,28 @@ pub fn handler(ctx: Context<DisbursePot>) -> Result<()> {
     // ── Calculate pot total and fee ────────────────────────
     // Pot total = what all active members contributed.
     // This is what should be sitting in PotVault right now.
-    let pot_total: u64 = (active_members as u64)
-        .checked_mul(contribution_amount)
-        .ok_or(RoundsError::MathOverflow)?;
+    //let pot_total: u64 = (active_members as u64)
+      //  .checked_mul(contribution_amount)
+       // .ok_or(RoundsError::MathOverflow)?;
+
+        // ── Calculate pot total and fee ────────────────────────
+    // For cycle 1: PotVault holds contributions + premiums
+    // from all members. Read the actual vault balance.
+    //
+    // For cycles 2-N: PotVault holds exactly
+    // active_members × contribution_amount.
+    // We compute this rather than reading the balance
+    // to avoid any rounding or dust issues.
+    let pot_total: u64 = if current_cycle == 1 {
+        // Read actual vault balance — includes all premiums
+        // deposited by positions 2-N at join time.
+        ctx.accounts.pot_vault.amount
+    } else {
+        // Computed — always active_members × contribution_amount
+        (active_members as u64)
+            .checked_mul(contribution_amount)
+            .ok_or(RoundsError::MathOverflow)?
+    };   
 
     // Protocol fee deducted before recipient gets anything.
     // fee = pot_total * fee_bps / 10_000

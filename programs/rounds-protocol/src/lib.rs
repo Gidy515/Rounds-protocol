@@ -39,6 +39,13 @@ pub mod rounds_protocol {
         )
     }
 
+        // ── Member instructions ──────────────────────────────
+    pub fn join_circle(
+        ctx: Context<JoinCircle>,
+    ) -> Result<()> {
+        instructions::join_circle::handler(ctx)
+    }
+
     // ── Permissionless keeper instructions ───────────────
     pub fn start_circle(
         ctx: Context<StartCircle>,
@@ -60,6 +67,27 @@ pub mod rounds_protocol {
         instructions::disburse_pot::handler(ctx)
     }
 
+    // ── Permissionless keeper instructions ───────────────
+    pub fn process_default(
+        ctx: Context<ProcessDefault>,
+    ) -> Result<()> {
+        instructions::process_default::handler(ctx)
+    }
+
+        // ── Member instructions ──────────────────────────────
+    pub fn claim_collateral(
+        ctx: Context<ClaimCollateral>,
+    ) -> Result<()> {
+        instructions::claim_collateral::handler(ctx)
+    }
+
+    // ── Permissionless keeper instructions ───────────────
+    pub fn cancel_circle(
+        ctx: Context<CancelCircle>,
+    ) -> Result<()> {
+        instructions::cancel_circle::handler(ctx)
+    }
+
     /*pub fn update_config(
         ctx: Context<UpdateConfig>,
         new_fee_bps: u16,
@@ -75,50 +103,5 @@ pub mod rounds_protocol {
     }
 
     // ── Permissionless keeper instructions ───────────────
-
-    pub fn create_circle(
-        ctx: Context<CreateCircle>,
-        contribution_amount: u64,
-        total_members: u8,
-        frequency: state::PayoutFrequency,
-    ) -> Result<()> {
-        instructions::create_circle::handler(
-            ctx,
-            contribution_amount,
-            total_members,
-            frequency,
-        )
-    }
-
-    pub fn start_circle(
-        ctx: Context<StartCircle>,
-    ) -> Result<()> {
-        instructions::start_circle::handler(ctx)
-    }
-
-    pub fn process_default(
-        ctx: Context<ProcessDefault>,
-    ) -> Result<()> {
-        instructions::process_default::handler(ctx)
-    }
-
-    pub fn cancel_circle(
-        ctx: Context<CancelCircle>,
-    ) -> Result<()> {
-        instructions::cancel_circle::handler(ctx)
-    }
-
-    // ── Member instructions ──────────────────────────────
-
-    pub fn join_circle(
-        ctx: Context<JoinCircle>,
-    ) -> Result<()> {
-        instructions::join_circle::handler(ctx)
-    }
-
-    pub fn claim_collateral(
-        ctx: Context<ClaimCollateral>,
-    ) -> Result<()> {
-        instructions::claim_collateral::handler(ctx)
-    }*/
+s*/
 }

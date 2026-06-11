@@ -4,13 +4,13 @@ pub mod join_circle;
 pub mod start_circle;
 pub mod pay_contribution;
 pub mod disburse_pot;
+pub mod process_default;
+pub mod claim_collateral;
+pub mod cancel_circle;
 /*pub mod pause_protocol;
 pub mod unpause_protocol;
 pub mod update_config;
-pub mod withdraw_treasury;
-pub mod process_default;
-pub mod claim_collateral;
-pub mod cancel_circle;*/
+pub mod withdraw_treasury;*/
 
 pub use initialize_protocol::*;
 pub use create_circle::*;
@@ -18,10 +18,10 @@ pub use join_circle::*;
 pub use start_circle::*;
 pub use pay_contribution::*;
 pub use disburse_pot::*;
+pub use process_default::*;
+pub use claim_collateral::*;
+pub use cancel_circle::*;
 /*pub use pause_protocol::*;
 pub use unpause_protocol::*;
 pub use update_config::*;
-pub use withdraw_treasury::*;
-pub use process_default::*;
-pub use claim_collateral::*;
-pub use cancel_circle::*;*/
+pub use withdraw_treasury::*;*/
