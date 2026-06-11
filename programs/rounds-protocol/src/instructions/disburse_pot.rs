@@ -35,7 +35,7 @@ pub struct DisbursePot<'info> {
         constraint = !protocol_config.is_paused
             @ RoundsError::ProtocolPaused,
     )]
-    pub protocol_config: Account<'info, ProtocolConfig>,
+    pub protocol_config: Box<Account<'info, ProtocolConfig>>,
 
     /// CircleAccount — must be Active.
     /// current_cycle incremented here.
@@ -54,7 +54,7 @@ pub struct DisbursePot<'info> {
         constraint = circle_account.state == CircleState::Active
             @ RoundsError::CircleNotActive,
     )]
-    pub circle_account: Account<'info, CircleAccount>,
+    pub circle_account: Box<Account<'info, CircleAccount>>,
 
     /// PaymentRecord for the current cycle.
     /// All active member bits must be set before
@@ -67,7 +67,7 @@ pub struct DisbursePot<'info> {
         ],
         bump = payment_record.bump,
     )]
-    pub payment_record: Account<'info, PaymentRecord>,
+    pub payment_record: Box<Account<'info, PaymentRecord>>,
 
     /// Recipient MemberAccount.
     /// Position must match current_cycle.
@@ -88,7 +88,7 @@ pub struct DisbursePot<'info> {
         constraint = !recipient_member_account.is_kicked
             @ RoundsError::MemberKicked,
     )]
-    pub recipient_member_account: Account<'info, MemberAccount>,
+    pub recipient_member_account: Box<Account<'info, MemberAccount>>,
 
     /// Recipient wallet — receives the net pot.
     /// Validated via recipient_member_account.member check
@@ -106,7 +106,7 @@ pub struct DisbursePot<'info> {
         token::authority     = recipient,
         token::token_program = token_program,
     )]
-    pub recipient_token_account: InterfaceAccount<'info, TokenAccount>,
+    pub recipient_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
     /// PotVault — source of the disbursement.
     /// Seeds: [b"pot_vault", circle_account]
@@ -120,7 +120,7 @@ pub struct DisbursePot<'info> {
         token::authority     = circle_account,
         token::token_program = token_program,
     )]
-    pub pot_vault: InterfaceAccount<'info, TokenAccount>,
+    pub pot_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
     /// TreasuryVault — receives the protocol fee.
     /// Seeds: [b"treasury", protocol_config]
@@ -135,10 +135,10 @@ pub struct DisbursePot<'info> {
         token::authority     = protocol_config,
         token::token_program = token_program,
     )]
-    pub treasury_vault: InterfaceAccount<'info, TokenAccount>,
+    pub treasury_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
     /// USDC mint — required by transfer_checked.
-    pub usdc_mint: InterfaceAccount<'info, Mint>,
+    pub usdc_mint: Box<InterfaceAccount<'info, Mint>>,
 
     pub token_program:  Interface<'info, TokenInterface>,
     pub system_program: Program<'info, System>,
@@ -161,7 +161,7 @@ pub struct DisbursePot<'info> {
 pub fn handler(ctx: Context<DisbursePot>) -> Result<()> {
 
     // Capture all values before mutable borrows
-    let circle_key          = ctx.accounts.circle_account.key();
+    //let circle_key          = ctx.accounts.circle_account.key();
     let active_members      = ctx.accounts.circle_account.active_members;
     let contribution_amount = ctx.accounts.circle_account.contribution_amount;
     let current_cycle       = ctx.accounts.circle_account.current_cycle;

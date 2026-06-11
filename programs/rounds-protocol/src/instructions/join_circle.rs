@@ -25,23 +25,17 @@ use crate::state::{
 #[derive(Accounts)]
 pub struct JoinCircle<'info> {
 
-    /// The joining member. Pays rent for MemberAccount
-    /// and CollateralRecord. Signs the transaction.
     #[account(mut)]
     pub member: Signer<'info>,
 
-    /// ProtocolConfig — checked for is_paused.
     #[account(
         seeds = [b"config"],
         bump = protocol_config.bump,
         constraint = !protocol_config.is_paused
             @ RoundsError::ProtocolPaused,
     )]
-    pub protocol_config: Account<'info, ProtocolConfig>,
+    pub protocol_config: Box<Account<'info, ProtocolConfig>>,
 
-    /// CircleAccount — must be in Open state.
-    /// Must not be full yet.
-    /// Position is derived from current_members + 1.
     #[account(
         mut,
         seeds = [
@@ -57,11 +51,8 @@ pub struct JoinCircle<'info> {
         constraint = circle_account.current_members < circle_account.total_members
             @ RoundsError::CircleFull,
     )]
-    pub circle_account: Account<'info, CircleAccount>,
+    pub circle_account: Box<Account<'info, CircleAccount>>,
 
-    /// MemberAccount PDA — created here.
-    /// Seeds: [b"member", circle_account, member]
-    /// One per member per circle. Stores live participation state.
     #[account(
         init,
         payer = member,
@@ -73,11 +64,8 @@ pub struct JoinCircle<'info> {
         ],
         bump,
     )]
-    pub member_account: Account<'info, MemberAccount>,
+    pub member_account: Box<Account<'info, MemberAccount>>,
 
-    /// CollateralRecord PDA — created here.
-    /// Seeds: [b"colrec", circle_account, member]
-    /// Permanent audit trail for this member's collateral.
     #[account(
         init,
         payer = member,
@@ -89,23 +77,16 @@ pub struct JoinCircle<'info> {
         ],
         bump,
     )]
-    pub collateral_record: Account<'info, CollateralRecord>,
+    pub collateral_record: Box<Account<'info, CollateralRecord>>,
 
-    /// Member's USDC token account.
-    /// Source of all payments in this instruction:
-    /// collateral + first round contribution + premium.
-    /// Validated against the circle's configured usdc_mint.
     #[account(
         mut,
         token::mint          = usdc_mint,
         token::authority     = member,
         token::token_program = token_program,
     )]
-    pub member_token_account: InterfaceAccount<'info, TokenAccount>,
+    pub member_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
-    /// CollateralVault — receives the member's locked collateral.
-    /// Seeds: [b"collateral_vault", circle_account]
-    /// Authority: circle_account PDA.
     #[account(
         mut,
         seeds = [b"collateral_vault", circle_account.key().as_ref()],
@@ -114,11 +95,8 @@ pub struct JoinCircle<'info> {
         token::authority     = circle_account,
         token::token_program = token_program,
     )]
-    pub collateral_vault: InterfaceAccount<'info, TokenAccount>,
+    pub collateral_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
-    /// PotVault — receives the first round contribution.
-    /// Seeds: [b"pot_vault", circle_account]
-    /// Authority: circle_account PDA.
     #[account(
         mut,
         seeds = [b"pot_vault", circle_account.key().as_ref()],
@@ -127,11 +105,9 @@ pub struct JoinCircle<'info> {
         token::authority     = circle_account,
         token::token_program = token_program,
     )]
-    pub pot_vault: InterfaceAccount<'info, TokenAccount>,
+    pub pot_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
-    /// USDC mint — used for transfer_checked calls.
-    /// transfer_checked requires the mint to verify decimals.
-    pub usdc_mint: InterfaceAccount<'info, Mint>,
+    pub usdc_mint: Box<InterfaceAccount<'info, Mint>>,
 
     pub system_program: Program<'info, System>,
     pub token_program:  Interface<'info, TokenInterface>,

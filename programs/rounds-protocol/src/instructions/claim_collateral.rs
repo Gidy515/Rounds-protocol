@@ -45,7 +45,7 @@ pub struct ClaimCollateral<'info> {
         constraint = !protocol_config.is_paused
             @ RoundsError::ProtocolPaused,
     )]
-    pub protocol_config: Account<'info, ProtocolConfig>,
+    pub protocol_config: Box<Account<'info, ProtocolConfig>>,
 
     /// CircleAccount — must be Completed or Cancelled.
     /// No other state allows collateral claims.
@@ -63,7 +63,7 @@ pub struct ClaimCollateral<'info> {
             circle_account.state == CircleState::Cancelled
         ) @ RoundsError::CircleNotComplete,
     )]
-    pub circle_account: Account<'info, CircleAccount>,
+    pub circle_account: Box<Account<'info, CircleAccount>>,
 
     /// MemberAccount — validated as belonging to this member
     /// in this circle. Confirms this wallet is a legitimate
@@ -80,7 +80,7 @@ pub struct ClaimCollateral<'info> {
         constraint = member_account.circle == circle_account.key()
             @ RoundsError::UnauthorizedClaim,
     )]
-    pub member_account: Account<'info, MemberAccount>,
+    pub member_account: Box<Account<'info, MemberAccount>>,
 
     /// CollateralRecord — the permanent audit trail.
     /// Provides total_locked and total_slashed for the
@@ -97,7 +97,7 @@ pub struct ClaimCollateral<'info> {
         constraint = !collateral_record.claimed
             @ RoundsError::AlreadyClaimed,
     )]
-    pub collateral_record: Account<'info, CollateralRecord>,
+    pub collateral_record: Box<Account<'info, CollateralRecord>>,
 
     /// CollateralVault — source of the collateral return.
     /// Seeds: [b"collateral_vault", circle_account]
@@ -110,7 +110,7 @@ pub struct ClaimCollateral<'info> {
         token::authority     = circle_account,
         token::token_program = token_program,
     )]
-    pub collateral_vault: InterfaceAccount<'info, TokenAccount>,
+    pub collateral_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
     /// Member's USDC token account — receives the collateral.
     /// Validated against the circle's configured mint.
@@ -120,10 +120,10 @@ pub struct ClaimCollateral<'info> {
         token::authority     = member,
         token::token_program = token_program,
     )]
-    pub member_token_account: InterfaceAccount<'info, TokenAccount>,
+    pub member_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
     /// USDC mint — required by transfer_checked.
-    pub usdc_mint: InterfaceAccount<'info, Mint>,
+    pub usdc_mint: Box<InterfaceAccount<'info, Mint>>,
 
     pub token_program:  Interface<'info, TokenInterface>,
     pub system_program: Program<'info, System>,

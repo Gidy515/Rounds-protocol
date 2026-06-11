@@ -46,7 +46,7 @@ pub struct CancelCircle<'info> {
         constraint = !protocol_config.is_paused
             @ RoundsError::ProtocolPaused,
     )]
-    pub protocol_config: Account<'info, ProtocolConfig>,
+    pub protocol_config: Box<Account<'info, ProtocolConfig>>,
 
     /// CircleAccount — must be Open or already Cancelled.
     /// Open: first caller transitions it to Cancelled.
@@ -70,7 +70,7 @@ pub struct CancelCircle<'info> {
             circle_account.state == CircleState::Cancelled
         ) @ RoundsError::CircleNotOpen,
     )]
-    pub circle_account: Account<'info, CircleAccount>,
+    pub circle_account: Box<Account<'info, CircleAccount>>,
 
     /// Caller's MemberAccount — proves they are a legitimate
     /// joined member of this circle.
@@ -88,7 +88,7 @@ pub struct CancelCircle<'info> {
         constraint = caller_member_account.circle == circle_account.key()
             @ RoundsError::NotAMember,
     )]
-    pub caller_member_account: Account<'info, MemberAccount>,
+    pub caller_member_account: Box<Account<'info, MemberAccount>>,
 
     /// Caller's CollateralRecord — used to calculate
     /// claimable collateral and prevent double-refund.
@@ -104,7 +104,7 @@ pub struct CancelCircle<'info> {
         constraint = !caller_collateral_record.claimed
             @ RoundsError::AlreadyClaimed,
     )]
-    pub caller_collateral_record: Account<'info, CollateralRecord>,
+    pub caller_collateral_record: Box<Account<'info, CollateralRecord>>,
 
     /// CollateralVault — returns caller's locked collateral.
     /// Seeds: [b"collateral_vault", circle_account]
@@ -117,7 +117,7 @@ pub struct CancelCircle<'info> {
         token::authority     = circle_account,
         token::token_program = token_program,
     )]
-    pub collateral_vault: InterfaceAccount<'info, TokenAccount>,
+    pub collateral_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
     /// PotVault — returns caller's first round contribution.
     /// Seeds: [b"pot_vault", circle_account]
@@ -130,7 +130,7 @@ pub struct CancelCircle<'info> {
         token::authority     = circle_account,
         token::token_program = token_program,
     )]
-    pub pot_vault: InterfaceAccount<'info, TokenAccount>,
+    pub pot_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
     /// Caller's USDC token account — receives all returned funds.
     /// Validated against the circle's configured mint.
@@ -140,10 +140,10 @@ pub struct CancelCircle<'info> {
         token::authority     = caller,
         token::token_program = token_program,
     )]
-    pub caller_token_account: InterfaceAccount<'info, TokenAccount>,
+    pub caller_token_account: Box<InterfaceAccount<'info, TokenAccount>>,
 
     /// USDC mint — required by transfer_checked.
-    pub usdc_mint: InterfaceAccount<'info, Mint>,
+    pub usdc_mint: Box<InterfaceAccount<'info, Mint>>,
 
     pub token_program:  Interface<'info, TokenInterface>,
     pub system_program: Program<'info, System>,

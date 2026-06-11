@@ -40,7 +40,7 @@ pub struct ProcessDefault<'info> {
         constraint = !protocol_config.is_paused
             @ RoundsError::ProtocolPaused,
     )]
-    pub protocol_config: Account<'info, ProtocolConfig>,
+    pub protocol_config: Box<Account<'info, ProtocolConfig>>,
 
     /// CircleAccount — must be Active.
     /// active_members decremented if member is kicked.
@@ -57,7 +57,7 @@ pub struct ProcessDefault<'info> {
         constraint = circle_account.state == CircleState::Active
             @ RoundsError::CircleNotActive,
     )]
-    pub circle_account: Account<'info, CircleAccount>,
+    pub circle_account: Box<Account<'info, CircleAccount>>,
 
     /// Defaulting member's MemberAccount.
     /// Seeds: [b"member", circle_account, defaulter]
@@ -73,7 +73,7 @@ pub struct ProcessDefault<'info> {
         constraint = !defaulter_member_account.is_kicked
             @ RoundsError::MemberAlreadyKicked,
     )]
-    pub defaulter_member_account: Account<'info, MemberAccount>,
+    pub defaulter_member_account: Box<Account<'info, MemberAccount>>,
 
     /// Defaulting member's CollateralRecord.
     /// total_slashed incremented here.
@@ -86,7 +86,7 @@ pub struct ProcessDefault<'info> {
         ],
         bump = defaulter_collateral_record.bump,
     )]
-    pub defaulter_collateral_record: Account<'info, CollateralRecord>,
+    pub defaulter_collateral_record: Box<Account<'info, CollateralRecord>>,
 
     /// PaymentRecord for the current cycle.
     /// Defaulter's bit is set here so disburse_pot
@@ -100,7 +100,7 @@ pub struct ProcessDefault<'info> {
         ],
         bump = payment_record.bump,
     )]
-    pub payment_record: Account<'info, PaymentRecord>,
+    pub payment_record: Box<Account<'info, PaymentRecord>>,
 
     /// CollateralVault — source of the seized collateral.
     /// Seeds: [b"collateral_vault", circle_account]
@@ -113,7 +113,7 @@ pub struct ProcessDefault<'info> {
         token::authority     = circle_account,
         token::token_program = token_program,
     )]
-    pub collateral_vault: InterfaceAccount<'info, TokenAccount>,
+    pub collateral_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
     /// PotVault — receives the seized collateral amount.
     /// Seeds: [b"pot_vault", circle_account]
@@ -126,7 +126,7 @@ pub struct ProcessDefault<'info> {
         token::authority     = circle_account,
         token::token_program = token_program,
     )]
-    pub pot_vault: InterfaceAccount<'info, TokenAccount>,
+    pub pot_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
     /// The defaulting member's wallet.
     /// Used only for PDA seed validation.
@@ -135,7 +135,7 @@ pub struct ProcessDefault<'info> {
     pub defaulter: UncheckedAccount<'info>,
 
     /// USDC mint — required by transfer_checked.
-    pub usdc_mint: InterfaceAccount<'info, Mint>,
+    pub usdc_mint: Box<InterfaceAccount<'info, Mint>>,
 
     pub token_program: Interface<'info, TokenInterface>,
 }
