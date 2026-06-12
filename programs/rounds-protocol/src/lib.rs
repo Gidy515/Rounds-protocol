@@ -88,7 +88,20 @@ pub mod rounds_protocol {
         instructions::cancel_circle::handler(ctx)
     }
 
-    /*pub fn update_config(
+    // ── Admin instructions ───────────────────────────────
+    pub fn pause_protocol(
+        ctx: Context<PauseProtocol>,
+    ) -> Result<()> {
+        instructions::pause_protocol::handler(ctx)
+    }
+
+    pub fn unpause_protocol(
+        ctx: Context<UnpauseProtocol>,
+    ) -> Result<()> {
+        instructions::unpause_protocol::handler(ctx)
+    }
+
+    pub fn update_config(
         ctx: Context<UpdateConfig>,
         new_fee_bps: u16,
     ) -> Result<()> {
@@ -102,6 +115,4 @@ pub mod rounds_protocol {
         instructions::withdraw_treasury::handler(ctx, amount)
     }
 
-    // ── Permissionless keeper instructions ───────────────
-s*/
 }

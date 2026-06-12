@@ -148,4 +148,14 @@ pub enum RoundsError {
 
     #[msg("Invalid token account. The provided account does not match the expected owner or mint.")]
     InvalidTokenAccount,
+
+    // ── Treasury errors ───────────────────────────────────
+    #[msg("Protocol is not currently paused.")]
+    ProtocolNotPaused,
+
+    #[msg("Withdrawal amount must be greater than zero.")]
+    InvalidWithdrawAmount,
+
+    #[msg("Withdrawal amount exceeds treasury vault balance.")]
+    InsufficientTreasuryBalance,
 }
