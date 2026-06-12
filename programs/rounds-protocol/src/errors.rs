@@ -136,6 +136,9 @@ pub enum RoundsError {
     #[msg("A calculation error occurred. This is likely a bug — please report it.")]
     MathUnderflow,
 
+    #[msg("The specified cycle does not match the circle's current active cycle.")]
+    InvalidCycle,
+
     // ── Invariant errors ─────────────────────────────────
 
     #[msg("Collateral invariant violated. Locked collateral cannot be less than remaining obligations. This is a critical protocol error.")]
