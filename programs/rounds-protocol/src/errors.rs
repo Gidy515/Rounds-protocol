@@ -93,6 +93,9 @@ pub enum RoundsError {
     #[msg("You are not an active member of this circle.")]
     NotAMember,
 
+    #[msg("You have not joined this circle and cannot make contributions.")]
+    InvalidPaymentRecord,
+
     // ── Disbursement errors ──────────────────────────────
 
     #[msg("Not all active members have paid their contribution for this cycle yet.")]

@@ -88,6 +88,13 @@ pub mod rounds_protocol {
         instructions::cancel_circle::handler(ctx)
     }
 
+    pub fn init_payment_record(
+        ctx: Context<InitPaymentRecord>,
+        cycle: u8,
+    ) -> Result<()> {
+        instructions::init_payment_record::handler(ctx, cycle)
+    }
+
     // ── Admin instructions ───────────────────────────────
     pub fn pause_protocol(
         ctx: Context<PauseProtocol>,

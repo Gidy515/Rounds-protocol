@@ -78,6 +78,12 @@ pub struct PayContribution<'info> {
             &[circle_account.current_cycle],
         ],
         bump = payment_record.bump,
+
+        constraint = payment_record.circle == circle_account.key()
+        @ RoundsError::InvalidPaymentRecord,
+
+        constraint = payment_record.cycle == circle_account.current_cycle
+        @ RoundsError::InvalidCycle,
     )]
     pub payment_record: Account<'info, PaymentRecord>,
 
@@ -132,6 +138,20 @@ pub fn handler(ctx: Context<PayContribution>) -> Result<()> {
     let current_cycle       = ctx.accounts.circle_account.current_cycle;
     let decimals            = ctx.accounts.usdc_mint.decimals;
     let position            = ctx.accounts.member_account.position;
+
+     // ── Validate PaymentRecord integrity ────────────────
+
+     require!(
+        ctx.accounts.payment_record.cycle
+            == ctx.accounts.circle_account.current_cycle,
+        RoundsError::InvalidCycle
+    );
+
+    require!(
+        ctx.accounts.payment_record.circle
+            == ctx.accounts.circle_account.key(),
+        RoundsError::InvalidPaymentRecord
+    );
 
     let clock = Clock::get()?;
 
