@@ -18,12 +18,12 @@ Rotating savings groups are one of the most widely used financial tools globally
 
 However, traditional ROSCAs suffer from several limitations:
 
-* Members can default after receiving their payout.
-* Group organizers act as trusted intermediaries.
-* Contributions are tracked manually.
-* Records are often opaque and difficult to audit.
-* Disputes require human intervention.
-* Participants have limited recourse when members disappear.
+- Members can default after receiving their payout.
+- Group organizers act as trusted intermediaries.
+- Contributions are tracked manually.
+- Records are often opaque and difficult to audit.
+- Disputes require human intervention.
+- Participants have limited recourse when members disappear.
 
 These trust assumptions limit scalability and introduce operational risk.
 
@@ -50,14 +50,14 @@ The protocol enforces these rules automatically.
 
 Assume:
 
-* 10 members
-* Contribution = 100 USDC
-* Weekly frequency
+- 10 members
+- Contribution = 100 USDC
+- Weekly frequency
 
 Every member deposits:
 
-* 100 USDC first contribution
-* 100 USDC collateral
+- 100 USDC first contribution
+- 100 USDC collateral
 
 Total joining deposit:
 
@@ -121,14 +121,14 @@ Admin deploys and initializes the protocol.
 
 Creates:
 
-* ProtocolConfig PDA
-* Treasury Vault PDA
+- ProtocolConfig PDA
+- Treasury Vault PDA
 
 Stores:
 
-* Admin address
-* Protocol fee
-* Pause status
+- Admin address
+- Protocol fee
+- Pause status
 
 ---
 
@@ -136,22 +136,22 @@ Stores:
 
 A user creates a savings circle by specifying:
 
-* Contribution amount
-* Total member count
-* Frequency
-* USDC mint
+- Contribution amount
+- Total member count
+- Frequency
+- USDC mint
 
 Examples:
 
-* 50 USDC weekly
-* 20 USDC monthly
-* 100 USDC biweekly
+- 50 USDC weekly
+- 20 USDC monthly
+- 100 USDC biweekly
 
 The protocol creates:
 
-* CircleAccount PDA
-* Collateral Vault PDA
-* Pot Vault PDA
+- CircleAccount PDA
+- Collateral Vault PDA
+- Pot Vault PDA
 
 The circle enters:
 
@@ -165,10 +165,10 @@ Members join the circle.
 
 Each member:
 
-* Receives a position
-* Creates a MemberAccount
-* Deposits collateral
-* Deposits first-cycle contribution
+- Receives a position
+- Creates a MemberAccount
+- Deposits collateral
+- Deposits first-cycle contribution
 
 Funds are split automatically:
 
@@ -188,10 +188,10 @@ Anyone can start a ready circle.
 
 The protocol:
 
-* Transitions Ready → Active
-* Sets Cycle 1
-* Creates PaymentRecord for Cycle 1
-* Marks all members as paid for Cycle 1
+- Transitions Ready → Active
+- Sets Cycle 1
+- Creates PaymentRecord for Cycle 1
+- Marks all members as paid for Cycle 1
 
 Cycle 1 contributions were already collected during joining.
 
@@ -205,10 +205,10 @@ Anyone may trigger disbursement.
 
 The protocol:
 
-* Verifies all required contributions are present
-* Deducts protocol fee
-* Sends payout to current recipient
-* Advances the circle
+- Verifies all required contributions are present
+- Deducts protocol fee
+- Sends payout to current recipient
+- Advances the circle
 
 If final cycle:
 
@@ -246,10 +246,10 @@ process_default may be called.
 
 The protocol:
 
-* Marks the member as kicked
-* Seizes collateral
-* Covers the missed contribution
-* Updates payment tracking
+- Marks the member as kicked
+- Seizes collateral
+- Covers the missed contribution
+- Updates payment tracking
 
 The circle continues operating.
 
@@ -265,8 +265,8 @@ Circle State → Completed
 
 The protocol records:
 
-* Completion slot
-* Final cycle
+- Completion slot
+- Final cycle
 
 Remaining collateral becomes claimable.
 
@@ -290,9 +290,9 @@ Global protocol configuration.
 
 Stores:
 
-* Admin
-* Fee rate
-* Pause status
+- Admin
+- Fee rate
+- Pause status
 
 ---
 
@@ -302,13 +302,13 @@ Primary circle state.
 
 Stores:
 
-* Contribution amount
-* Member count
-* Active members
-* Frequency
-* Current cycle
-* Deadlines
-* Circle state
+- Contribution amount
+- Member count
+- Active members
+- Frequency
+- Current cycle
+- Deadlines
+- Circle state
 
 ---
 
@@ -318,12 +318,12 @@ One account per member per circle.
 
 Stores:
 
-* Wallet address
-* Position
-* Collateral amount
-* Default count
-* Payout status
-* Kick status
+- Wallet address
+- Position
+- Collateral amount
+- Default count
+- Payout status
+- Kick status
 
 ---
 
@@ -363,8 +363,8 @@ Holds member collateral.
 
 Used only when:
 
-* Default occurs
-* Circle completes
+- Default occurs
+- Circle completes
 
 ---
 
@@ -406,23 +406,23 @@ Circle failed to fill before deadline.
 
 Rounds uses multiple layers of protection:
 
-* PDA ownership
-* Seed verification
-* Anchor account constraints
-* Collateral-backed guarantees
-* Permissionless execution
-* Overflow-safe arithmetic
-* Explicit state transitions
-* Token mint validation
-* Authority validation
+- PDA ownership
+- Seed verification
+- Anchor account constraints
+- Collateral-backed guarantees
+- Permissionless execution
+- Overflow-safe arithmetic
+- Explicit state transitions
+- Token mint validation
+- Authority validation
 
 No participant can:
 
-* Skip contribution requirements
-* Claim multiple payouts
-* Modify payout order
-* Withdraw protocol funds
-* Steal collateral
+- Skip contribution requirements
+- Claim multiple payouts
+- Modify payout order
+- Withdraw protocol funds
+- Steal collateral
 
 without satisfying protocol rules.
 
@@ -444,11 +444,11 @@ The remaining amount is sent to the recipient.
 
 # Technology Stack
 
-* Solana
-* Rust
-* Anchor Framework
-* SPL Token-2022 Compatible Interfaces
-* Program Derived Addresses (PDAs)
+- Solana
+- Rust
+- Anchor Framework
+- SPL Token-2022 Compatible Interfaces (SPL Token Interface)
+- Program Derived Addresses (PDAs)
 
 ---
 
