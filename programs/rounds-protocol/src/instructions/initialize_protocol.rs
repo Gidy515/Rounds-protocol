@@ -60,7 +60,7 @@ pub struct InitializeProtocol<'info> {
     pub token_program: Interface<'info, TokenInterface>,
 
     /// Required for token account rent exemption calculation.
-    pub rent: Sysvar<'info, Rent>,
+    //pub rent: Sysvar<'info, Rent>,
     pub associated_token_program: Program<'info, AssociatedToken>,
 }
 
