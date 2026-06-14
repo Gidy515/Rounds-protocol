@@ -67,12 +67,23 @@ pub struct CreateCircle<'info> {
     /// Authority: circle_account PDA — program controlled.
     /// Never touched during normal operation.
     /// Only moves on default deduction or circle completion.
+    //#[account(
+    //    init,
+    //    payer = creator,
+    //    associated_token::mint          = usdc_mint,
+    //    associated_token::authority     = circle_account,
+    //    associated_token::token_program = token_program,
+    //)]
+    //pub collateral_vault: InterfaceAccount<'info, TokenAccount>,
+
     #[account(
         init,
         payer = creator,
-        associated_token::mint          = usdc_mint,
-        associated_token::authority     = circle_account,
-        associated_token::token_program = token_program,
+        seeds = [b"collateral_vault", circle_account.key().as_ref()],
+        bump,
+        token::mint = usdc_mint,
+        token::authority = circle_account,
+        token::token_program = token_program,
     )]
     pub collateral_vault: InterfaceAccount<'info, TokenAccount>,
 
@@ -81,12 +92,23 @@ pub struct CreateCircle<'info> {
     /// Seeds: [b"pot_vault", circle_account pubkey]
     /// Authority: circle_account PDA — program controlled.
     /// Fills each cycle, zeroes completely after disburse_pot.
+    //#[account(
+    //    init,
+    //    payer = creator,
+    //    associated_token::mint          = usdc_mint,
+    //    associated_token::authority     = circle_account,
+    //    associated_token::token_program = token_program,
+    //)]
+    //pub pot_vault: InterfaceAccount<'info, TokenAccount>,
+
     #[account(
         init,
         payer = creator,
-        associated_token::mint          = usdc_mint,
-        associated_token::authority     = circle_account,
-        associated_token::token_program = token_program,
+        seeds = [b"pot_vault", circle_account.key().as_ref()],
+        bump,
+        token::mint = usdc_mint,
+        token::authority = circle_account,
+        token::token_program = token_program,
     )]
     pub pot_vault: InterfaceAccount<'info, TokenAccount>,
 

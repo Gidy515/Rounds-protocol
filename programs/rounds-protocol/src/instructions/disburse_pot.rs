@@ -1,7 +1,10 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{
-    Mint, TokenAccount, TokenInterface,
-    TransferChecked, transfer_checked,
+use anchor_spl::{
+    associated_token::AssociatedToken,
+    token_interface::{
+        Mint, TokenAccount, TokenInterface,
+        TransferChecked, transfer_checked,
+    },
 };
 
 use crate::errors::RoundsError;
@@ -124,16 +127,28 @@ pub struct DisbursePot<'info> {
 
     /// TreasuryVault — receives the protocol fee.
     /// Seeds: [b"treasury", protocol_config]
+    //#[account(
+    //    mut,
+    //    seeds = [
+    //        b"treasury",
+    //        protocol_config.key().as_ref(),
+   //     ],
+   //     bump,
+   //     token::mint          = usdc_mint,
+   //     token::authority     = protocol_config,
+    //    token::token_program = token_program,
+   // )]
+   // pub treasury_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+
+   /// TreasuryVault — receives the protocol fee.
+/// Created in initialize_protocol as an ATA of protocol_config.
+/// Validated here using associated_token constraints to match
+/// how it was created.
     #[account(
         mut,
-        seeds = [
-            b"treasury",
-            protocol_config.key().as_ref(),
-        ],
-        bump,
-        token::mint          = usdc_mint,
-        token::authority     = protocol_config,
-        token::token_program = token_program,
+        associated_token::mint          = usdc_mint,
+        associated_token::authority     = protocol_config,
+        associated_token::token_program = token_program,
     )]
     pub treasury_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
@@ -142,6 +157,7 @@ pub struct DisbursePot<'info> {
 
     pub token_program:  Interface<'info, TokenInterface>,
     pub system_program: Program<'info, System>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
 }
 
 /// disburse_pot

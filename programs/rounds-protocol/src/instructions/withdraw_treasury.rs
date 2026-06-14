@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token_interface::{
-    Mint, TokenAccount, TokenInterface,
-    TransferChecked, transfer_checked,
+use anchor_spl::{
+    associated_token::AssociatedToken,
+    token_interface::{Mint, TokenAccount, TokenInterface, TransferChecked, transfer_checked},
 };
 
 use crate::errors::RoundsError;
@@ -40,16 +40,24 @@ pub struct WithdrawTreasury<'info> {
     /// TreasuryVault — source of the withdrawal.
     /// Seeds: [b"treasury", protocol_config]
     /// Authority: protocol_config PDA.
+    //#[account(
+    //    mut,
+    //    seeds = [
+    //        b"treasury",
+    //        protocol_config.key().as_ref(),
+    //    ],
+    //    bump,
+   //     token::mint          = usdc_mint,
+    //    token::authority     = protocol_config,
+    //    token::token_program = token_program,
+   // )]
+   // pub treasury_vault: Box<InterfaceAccount<'info, TokenAccount>>,
+
     #[account(
         mut,
-        seeds = [
-            b"treasury",
-            protocol_config.key().as_ref(),
-        ],
-        bump,
-        token::mint          = usdc_mint,
-        token::authority     = protocol_config,
-        token::token_program = token_program,
+        associated_token::mint          = usdc_mint,
+        associated_token::authority     = protocol_config,
+        associated_token::token_program = token_program,
     )]
     pub treasury_vault: Box<InterfaceAccount<'info, TokenAccount>>,
 
@@ -67,6 +75,7 @@ pub struct WithdrawTreasury<'info> {
     pub usdc_mint: Box<InterfaceAccount<'info, Mint>>,
 
     pub token_program: Interface<'info, TokenInterface>,
+    pub associated_token_program: Program<'info, AssociatedToken>,
 }
 
 /// withdraw_treasury

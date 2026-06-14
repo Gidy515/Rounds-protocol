@@ -14,6 +14,7 @@ import {
   createAssociatedTokenAccount,
   mintTo,
   getAssociatedTokenAddress,
+  getAssociatedTokenAddressSync,
   TOKEN_2022_PROGRAM_ID,
   ASSOCIATED_TOKEN_PROGRAM_ID,
   getAccount,
@@ -311,7 +312,14 @@ describe("Rounds Protocol", () => {
 
     // Derive PDAs
     [configPda] = deriveProtocolConfigPda(program.programId);
-    [treasuryVaultPda] = deriveTreasuryVaultPda(program.programId, configPda);
+    //[treasuryVaultPda] = deriveTreasuryVaultPda(program.programId, configPda);
+    treasuryVaultPda = getAssociatedTokenAddressSync(
+      usdcMint,
+      configPda, // authority is the ProtocolConfig PDA
+      true, // allowOwnerOffCurve = true because configPda is a PDA
+      TOKEN_2022_PROGRAM_ID,
+      ASSOCIATED_TOKEN_PROGRAM_ID
+    );
 
     [circlePda] = deriveCirclePda(
       program.programId,
@@ -588,7 +596,7 @@ describe("Rounds Protocol", () => {
       );
     });
 
-    it("member2 joins as position 2, pays premium to member1", async () => {
+    it("member2 joins as position 2, pays premium into PotVault", async () => {
       const [member2Pda] = deriveMemberPda(
         program.programId,
         circlePda,
@@ -600,10 +608,10 @@ describe("Rounds Protocol", () => {
         member2.publicKey
       );
 
-      const member1BalBefore = (
+      const potVaultBefore = (
         await getAccount(
           connection,
-          member1Ata,
+          potVaultPda,
           undefined,
           TOKEN_2022_PROGRAM_ID
         )
@@ -628,33 +636,28 @@ describe("Rounds Protocol", () => {
         .rpc();
 
       const member2Acc = await program.account.memberAccount.fetch(member2Pda);
-
-      // Position 2 collateral = (3-2) × 100 = 100 USDC
-      const expectedCollateral = new BN(100_000_000);
-      // Premium = 100 × 10% = 10 USDC
-      const expectedPremium = new BN(10_000_000);
-
-      assert.equal(member2Acc.position, 2, "should be position 2");
-      assert.equal(
-        member2Acc.collateralLocked.toString(),
-        expectedCollateral.toString(),
-        "position 2 collateral should be 100 USDC"
-      );
-
-      // Verify member1 received the premium
-      const member1BalAfter = (
+      const potVaultAfter = (
         await getAccount(
           connection,
-          member1Ata,
+          potVaultPda,
           undefined,
           TOKEN_2022_PROGRAM_ID
         )
       ).amount;
 
+      // Position 2 collateral = (3-2) × 100 = 100 USDC
+      assert.equal(member2Acc.position, 2, "should be position 2");
       assert.equal(
-        member1BalAfter - member1BalBefore,
-        BigInt(expectedPremium.toString()),
-        "member1 should have received 10 USDC premium"
+        member2Acc.collateralLocked.toString(),
+        "100000000",
+        "position 2 collateral should be 100 USDC"
+      );
+
+      // PotVault should have increased by contribution (100) + premium (10) = 110 USDC
+      assert.equal(
+        potVaultAfter - potVaultBefore,
+        BigInt(110_000_000),
+        "PotVault should have received contribution + premium from member2"
       );
     });
 
@@ -1258,6 +1261,7 @@ describe("Rounds Protocol", () => {
           treasuryVault: treasuryVaultPda,
           usdcMint: usdcMint,
           tokenProgram: TOKEN_2022_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
           systemProgram: SystemProgram.programId,
         })
         .signers([admin])
@@ -1577,14 +1581,15 @@ describe("Rounds Protocol", () => {
     });
 
     it("withdraws accumulated treasury fees", async () => {
-      const adminAta = await getAssociatedTokenAddress(
+      const adminAta = getAssociatedTokenAddressSync(
         usdcMint,
         admin.publicKey,
         false,
-        TOKEN_2022_PROGRAM_ID
+        TOKEN_2022_PROGRAM_ID,
+        ASSOCIATED_TOKEN_PROGRAM_ID
       );
 
-      // Create admin ATA if it doesn't exist
+      // Create admin ATA — will no-op if already exists
       try {
         await createAssociatedTokenAccount(
           connection,
@@ -1592,10 +1597,11 @@ describe("Rounds Protocol", () => {
           usdcMint,
           admin.publicKey,
           undefined,
-          TOKEN_2022_PROGRAM_ID
+          TOKEN_2022_PROGRAM_ID,
+          ASSOCIATED_TOKEN_PROGRAM_ID
         );
       } catch {
-        // already exists, fine
+        // already exists — fine
       }
 
       const treasuryBalance = (
@@ -1608,9 +1614,7 @@ describe("Rounds Protocol", () => {
       ).amount;
 
       if (treasuryBalance === BigInt(0)) {
-        console.log(
-          "    Treasury is empty — no fees collected at 0 bps. Skipping withdrawal."
-        );
+        console.log("    Treasury is empty. Skipping withdrawal.");
         return;
       }
 
@@ -1627,6 +1631,7 @@ describe("Rounds Protocol", () => {
           destination: adminAta,
           usdcMint: usdcMint,
           tokenProgram: TOKEN_2022_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
         })
         .signers([admin])
         .rpc();
