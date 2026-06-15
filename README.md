@@ -477,3 +477,9 @@ By combining cooperative savings with smart contract enforcement, Rounds enables
 ## Architecture Design
 
 📄 [Architectural diagram](assets/Rounds%20Protocol%20—%20Architecture%20Diagrams.pdf)
+
+📄 [Letter of Intent](https://github.com/<username>/<repo>/blob/main/assets/Turbin3_capstone_project_definition_and_market_analysis.pdf)
+
+📄 [User Stories](https://github.com/<username>/<repo>/blob/main/assets/rounds_protocol_user_stories_and_onchain_requirements.pdf)
+
+📄 [Architecture Diagram](https://github.com/<username>/<repo>/blob/main/assets/rounds-protocol-architecture-diagrams.pdf)
