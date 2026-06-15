@@ -458,6 +458,8 @@ Rounds transforms one of humanity's oldest financial coordination mechanisms int
 
 By combining cooperative savings with smart contract enforcement, Rounds enables trustless community finance at internet scale while preserving the simplicity that made ROSCAs successful for generations.
 
+PROGRAM_ID = 7BBvnkQ4AKMFU6EfWvScSqi69eu9TjLoDzpmzG8ZeFhN
+
 ## Rounds protocol tests suit
 
 <p align="center">
