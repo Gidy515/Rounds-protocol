@@ -457,3 +457,7 @@ The remaining amount is sent to the recipient.
 Rounds transforms one of humanity's oldest financial coordination mechanisms into an open, transparent, and programmable financial primitive.
 
 By combining cooperative savings with smart contract enforcement, Rounds enables trustless community finance at internet scale while preserving the simplicity that made ROSCAs successful for generations.
+
+<p align="center">
+    <img src="/assets/Rounds-protocol-tests.png" alt="Rounds protocol tests suit">
+</p>
