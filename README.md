@@ -458,6 +458,22 @@ Rounds transforms one of humanity's oldest financial coordination mechanisms int
 
 By combining cooperative savings with smart contract enforcement, Rounds enables trustless community finance at internet scale while preserving the simplicity that made ROSCAs successful for generations.
 
+## Rounds protocol tests suit
+
 <p align="center">
     <img src="/assets/Rounds-protocol-tests.png" alt="Rounds protocol tests suit">
 </p>
+
+## Important docs
+
+## Turbin3 Capstone Project Definition & Market Analysis
+
+📄 [Letter of intent](assets/Turbin3_capstone_project_definition_and_market_analysis.pdf)
+
+## User Stories & On-Chain Requirements
+
+📄 [User stories](assets/rounds_protocol_user_stories_and_onchain_requirements.pdf)
+
+## Architecture Design
+
+📄 [Architectural diagram](assets/Rounds%20Protocol%20—%20Architecture%20Diagrams.pdf)
