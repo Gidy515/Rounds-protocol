@@ -117,7 +117,6 @@ async function main() {
   console.log(`NEXT_PUBLIC_TREASURY_VAULT=${treasuryVaultPda.toBase58()}`);
   console.log(`NEXT_PUBLIC_USDC_MINT=${usdcMint.toBase58()}`);
   console.log(`NEXT_PUBLIC_CLUSTER=devnet`);
-  console.log("\nSave these into your frontend .env.local file.");
 }
 
 main().catch(console.error);
