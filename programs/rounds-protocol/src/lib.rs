@@ -29,14 +29,10 @@ pub mod rounds_protocol {
         ctx: Context<CreateCircle>,
         contribution_amount: u64,
         total_members: u8,
-        frequency: state::PayoutFrequency,
+        frequency: PayoutFrequency,
+        nonce: u8,
     ) -> Result<()> {
-        instructions::create_circle::handler(
-            ctx,
-            contribution_amount,
-            total_members,
-            frequency,
-        )
+        instructions::create_circle::handler(ctx, contribution_amount, total_members, frequency, nonce)
     }
 
         // ── Member instructions ──────────────────────────────

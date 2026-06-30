@@ -52,6 +52,7 @@ pub struct ProcessDefault<'info> {
             &[circle_account.total_members],
             &[circle_account.frequency.clone() as u8],
             circle_account.usdc_mint.as_ref(),
+            &[circle_account.nonce],
         ],
         bump = circle_account.bump,
         constraint = circle_account.state == CircleState::Active
@@ -229,12 +230,14 @@ pub fn handler(ctx: Context<ProcessDefault>) -> Result<()> {
     let frequency_byte            = [ctx.accounts.circle_account.frequency.clone() as u8];
     let circle_bump               = [ctx.accounts.circle_account.bump];
 
+    let circle_nonce              = [ctx.accounts.circle_account.nonce];
     let circle_signer_seeds: &[&[u8]] = &[
         b"circle",
         contribution_amount_bytes.as_ref(),
         total_members_byte.as_ref(),
         frequency_byte.as_ref(),
         ctx.accounts.circle_account.usdc_mint.as_ref(),
+        circle_nonce.as_ref(),
         circle_bump.as_ref(),
     ];
 

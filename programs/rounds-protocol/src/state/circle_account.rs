@@ -141,6 +141,11 @@ pub struct CircleAccount {
 
     /// PDA bump seed. Stored to avoid recomputation.
     pub bump: u8,
+
+    /// Nonce — allows multiple circles with identical parameters.
+    /// Increments when the previous circle at nonce N-1 is full.
+    /// Frontend finds the correct nonce automatically.
+    pub nonce: u8,
 }
 
 impl CircleAccount {
@@ -159,7 +164,8 @@ impl CircleAccount {
     /// started_at_slot (u64):        8  ← new
     /// completed_at_slot (u64):      8  ← new
     /// bump (u8):                    1
+    /// nonce (u8):                   1  ← new
     /// ─────────────────────────────
     /// Total:                       95
-    pub const LEN: usize = 8 + 8 + 1 + 1 + 1 + 1 + 8 + 32 + 1 + 1 + 8 + 8 + 8 + 8 + 1;
+    pub const LEN: usize = 8 + 8 + 1 + 1 + 1 + 1 + 8 + 32 + 1 + 1 + 8 + 8 + 8 + 8 + 1 + 1;
 }

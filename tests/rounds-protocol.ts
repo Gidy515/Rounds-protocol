@@ -35,12 +35,11 @@ function deriveCirclePda(
   programId: PublicKey,
   contributionAmount: BN,
   totalMembers: number,
-  frequency: number, // 0=Daily 1=Weekly 2=Biweekly 3=Monthly
-  usdcMint: PublicKey
+  frequency: number,
+  usdcMint: PublicKey,
+  nonce: number = 0
 ): [PublicKey, number] {
-  const amountBuffer = Buffer.alloc(8);
-  amountBuffer.writeBigUInt64LE(BigInt(contributionAmount.toString()));
-
+  const amountBuffer = contributionAmount.toArrayLike(Buffer, "le", 8);
   return PublicKey.findProgramAddressSync(
     [
       Buffer.from("circle"),
@@ -48,6 +47,7 @@ function deriveCirclePda(
       Buffer.from([totalMembers]),
       Buffer.from([frequency]),
       usdcMint.toBuffer(),
+      Buffer.from([nonce]),
     ],
     programId
   );
@@ -326,7 +326,8 @@ describe("Rounds Protocol", () => {
       CONTRIBUTION_AMOUNT,
       TOTAL_MEMBERS,
       FREQUENCY_DAILY,
-      usdcMint
+      usdcMint,
+      0 // nonce
     );
 
     [collateralVaultPda] = deriveCollateralVaultPda(
@@ -443,7 +444,8 @@ describe("Rounds Protocol", () => {
         .createCircle(
           CONTRIBUTION_AMOUNT,
           TOTAL_MEMBERS,
-          { daily: {} } // PayoutFrequency::Daily
+          { daily: {} },
+          0 // nonce
         )
         .accountsPartial({
           creator: member1.publicKey,
@@ -487,7 +489,7 @@ describe("Rounds Protocol", () => {
     it("rejects duplicate open circle creation", async () => {
       try {
         await program.methods
-          .createCircle(CONTRIBUTION_AMOUNT, TOTAL_MEMBERS, { daily: {} })
+          .createCircle(CONTRIBUTION_AMOUNT, TOTAL_MEMBERS, { daily: {} }, 0)
           .accountsPartial({
             creator: member1.publicKey,
             protocolConfig: configPda,

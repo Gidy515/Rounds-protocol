@@ -44,12 +44,13 @@ pub struct PayContribution<'info> {
             &[circle_account.total_members],
             &[circle_account.frequency.clone() as u8],
             circle_account.usdc_mint.as_ref(),
+            &[circle_account.nonce],
         ],
         bump = circle_account.bump,
         constraint = circle_account.state == CircleState::Active
             @ RoundsError::CircleNotActive,
     )]
-    pub circle_account: Account<'info, CircleAccount>,
+    pub circle_account: Box<Account<'info, CircleAccount>>,
 
     /// MemberAccount — validated as belonging to this member
     /// in this circle. Member must not be kicked.

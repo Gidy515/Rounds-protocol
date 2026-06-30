@@ -51,6 +51,7 @@ pub struct InitPaymentRecord<'info> {
             &[circle_account.total_members],
             &[circle_account.frequency.clone() as u8],
             circle_account.usdc_mint.as_ref(),
+            &[circle_account.nonce],
         ],
         bump = circle_account.bump,
         constraint = circle_account.state == CircleState::Active

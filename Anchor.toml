@@ -12,7 +12,7 @@ rounds_protocol = "7BBvnkQ4AKMFU6EfWvScSqi69eu9TjLoDzpmzG8ZeFhN"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
+cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
