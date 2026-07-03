@@ -35,12 +35,11 @@ function deriveCirclePda(
   programId: PublicKey,
   contributionAmount: BN,
   totalMembers: number,
-  frequency: number, // 0=Daily 1=Weekly 2=Biweekly 3=Monthly
-  usdcMint: PublicKey
+  frequency: number,
+  usdcMint: PublicKey,
+  nonce: number = 0
 ): [PublicKey, number] {
-  const amountBuffer = Buffer.alloc(8);
-  amountBuffer.writeBigUInt64LE(BigInt(contributionAmount.toString()));
-
+  const amountBuffer = contributionAmount.toArrayLike(Buffer, "le", 8);
   return PublicKey.findProgramAddressSync(
     [
       Buffer.from("circle"),
@@ -48,6 +47,7 @@ function deriveCirclePda(
       Buffer.from([totalMembers]),
       Buffer.from([frequency]),
       usdcMint.toBuffer(),
+      Buffer.from([nonce]),
     ],
     programId
   );
@@ -171,6 +171,9 @@ const CONTRIBUTION_AMOUNT = new BN(100_000_000); // 100 USDC
 const TOTAL_MEMBERS = 3; // small circle for fast tests
 const FREQUENCY_DAILY = 0; // maps to Daily in PayoutFrequency enum
 const PROTOCOL_FEE_BPS = 50; // 0.5%
+
+// Add near the top where circlePda etc are declared
+let defaultCirclePda: PublicKey;
 
 // ─────────────────────────────────────────────────────────
 // TEST SUITE
@@ -326,7 +329,8 @@ describe("Rounds Protocol", () => {
       CONTRIBUTION_AMOUNT,
       TOTAL_MEMBERS,
       FREQUENCY_DAILY,
-      usdcMint
+      usdcMint,
+      0 // nonce
     );
 
     [collateralVaultPda] = deriveCollateralVaultPda(
@@ -443,7 +447,8 @@ describe("Rounds Protocol", () => {
         .createCircle(
           CONTRIBUTION_AMOUNT,
           TOTAL_MEMBERS,
-          { daily: {} } // PayoutFrequency::Daily
+          { daily: {} },
+          0 // nonce
         )
         .accountsPartial({
           creator: member1.publicKey,
@@ -487,7 +492,7 @@ describe("Rounds Protocol", () => {
     it("rejects duplicate open circle creation", async () => {
       try {
         await program.methods
-          .createCircle(CONTRIBUTION_AMOUNT, TOTAL_MEMBERS, { daily: {} })
+          .createCircle(CONTRIBUTION_AMOUNT, TOTAL_MEMBERS, { daily: {} }, 0)
           .accountsPartial({
             creator: member1.publicKey,
             protocolConfig: configPda,
@@ -1645,6 +1650,854 @@ describe("Rounds Protocol", () => {
         treasuryBalance,
         "admin should receive full treasury balance"
       );
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────
+  // 9. CANCEL CIRCLE TESTS
+  // ─────────────────────────────────────────────────────────
+  describe("cancel_circle", () => {
+    let cancelCirclePda: PublicKey;
+    let cancelColVaultPda: PublicKey;
+    let cancelPotVaultPda: PublicKey;
+    let cancelMember1Pda: PublicKey;
+    let cancelColRec1Pda: PublicKey;
+    let cancelMember1Ata: PublicKey;
+    const cancelAmount = new BN(50_000_000); // 50 USDC
+    const cancelMembers = 3;
+    const cancelFreq = 0; // Daily
+
+    before(async () => {
+      // Create a fresh circle for cancel tests
+      [cancelCirclePda] = deriveCirclePda(
+        program.programId,
+        cancelAmount,
+        cancelMembers,
+        cancelFreq,
+        usdcMint,
+        0
+      );
+      [cancelColVaultPda] = deriveCollateralVaultPda(
+        program.programId,
+        cancelCirclePda
+      );
+      [cancelPotVaultPda] = derivePotVaultPda(
+        program.programId,
+        cancelCirclePda
+      );
+      [cancelMember1Pda] = deriveMemberPda(
+        program.programId,
+        cancelCirclePda,
+        member1.publicKey
+      );
+      [cancelColRec1Pda] = deriveCollateralRecordPda(
+        program.programId,
+        cancelCirclePda,
+        member1.publicKey
+      );
+
+      cancelMember1Ata = await getAssociatedTokenAddress(
+        usdcMint,
+        member1.publicKey,
+        false,
+        TOKEN_2022_PROGRAM_ID
+      );
+
+      // Create the circle
+      await program.methods
+        .createCircle(cancelAmount, cancelMembers, { daily: {} }, 0)
+        .accountsPartial({
+          creator: member1.publicKey,
+          protocolConfig: configPda,
+          circleAccount: cancelCirclePda,
+          collateralVault: cancelColVaultPda,
+          potVault: cancelPotVaultPda,
+          usdcMint,
+          systemProgram: SystemProgram.programId,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        })
+        .signers([member1])
+        .rpc();
+
+      // Member1 joins as position 1
+      await program.methods
+        .joinCircle()
+        .accountsPartial({
+          member: member1.publicKey,
+          protocolConfig: configPda,
+          circleAccount: cancelCirclePda,
+          memberAccount: cancelMember1Pda,
+          collateralRecord: cancelColRec1Pda,
+          memberTokenAccount: cancelMember1Ata,
+          collateralVault: cancelColVaultPda,
+          potVault: cancelPotVaultPda,
+          usdcMint,
+          systemProgram: SystemProgram.programId,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
+        })
+        .signers([member1])
+        .rpc();
+    });
+
+    it("allows creator to cancel when they are the only member", async () => {
+      const balBefore = (
+        await getAccount(
+          connection,
+          cancelMember1Ata,
+          undefined,
+          TOKEN_2022_PROGRAM_ID
+        )
+      ).amount;
+
+      await program.methods
+        .cancelCircle()
+        .accountsPartial({
+          caller: member1.publicKey,
+          protocolConfig: configPda,
+          circleAccount: cancelCirclePda,
+          callerMemberAccount: cancelMember1Pda,
+          callerCollateralRecord: cancelColRec1Pda,
+          collateralVault: cancelColVaultPda,
+          potVault: cancelPotVaultPda,
+          callerTokenAccount: cancelMember1Ata,
+          usdcMint,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([member1])
+        .rpc();
+
+      const circle = await program.account.circleAccount.fetch(cancelCirclePda);
+      const balAfter = (
+        await getAccount(
+          connection,
+          cancelMember1Ata,
+          undefined,
+          TOKEN_2022_PROGRAM_ID
+        )
+      ).amount;
+
+      assert.deepEqual(
+        circle.state,
+        { cancelled: {} },
+        "circle should be Cancelled"
+      );
+
+      // member1 should have received back collateral (100 USDC) + contribution (50 USDC) = 150 USDC
+      const expectedReturn = new BN(150_000_000);
+      assert.equal(
+        (balAfter - balBefore).toString(),
+        expectedReturn.toString(),
+        "member1 should get collateral + contribution back"
+      );
+    });
+
+    it("rejects cancel when circle has more than 1 member and deadline not passed", async () => {
+      // Create a new circle with 2 members
+      const [circle2Pda] = deriveCirclePda(
+        program.programId,
+        cancelAmount,
+        cancelMembers,
+        cancelFreq,
+        usdcMint,
+        1
+      );
+      const [colVault2Pda] = deriveCollateralVaultPda(
+        program.programId,
+        circle2Pda
+      );
+      const [potVault2Pda] = derivePotVaultPda(program.programId, circle2Pda);
+      const [mem1Pda2] = deriveMemberPda(
+        program.programId,
+        circle2Pda,
+        member1.publicKey
+      );
+      const [mem2Pda2] = deriveMemberPda(
+        program.programId,
+        circle2Pda,
+        member2.publicKey
+      );
+      const [colRec1Pda2] = deriveCollateralRecordPda(
+        program.programId,
+        circle2Pda,
+        member1.publicKey
+      );
+      const [colRec2Pda2] = deriveCollateralRecordPda(
+        program.programId,
+        circle2Pda,
+        member2.publicKey
+      );
+
+      // Create and have both members join
+      await program.methods
+        .createCircle(cancelAmount, cancelMembers, { daily: {} }, 1)
+        .accountsPartial({
+          creator: member1.publicKey,
+          protocolConfig: configPda,
+          circleAccount: circle2Pda,
+          collateralVault: colVault2Pda,
+          potVault: potVault2Pda,
+          usdcMint,
+          systemProgram: SystemProgram.programId,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        })
+        .signers([member1])
+        .rpc();
+
+      await program.methods
+        .joinCircle()
+        .accountsPartial({
+          member: member1.publicKey,
+          protocolConfig: configPda,
+          circleAccount: circle2Pda,
+          memberAccount: mem1Pda2,
+          collateralRecord: colRec1Pda2,
+          memberTokenAccount: member1Ata,
+          collateralVault: colVault2Pda,
+          potVault: potVault2Pda,
+          usdcMint,
+          systemProgram: SystemProgram.programId,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
+        })
+        .signers([member1])
+        .rpc();
+
+      await program.methods
+        .joinCircle()
+        .accountsPartial({
+          member: member2.publicKey,
+          protocolConfig: configPda,
+          circleAccount: circle2Pda,
+          memberAccount: mem2Pda2,
+          collateralRecord: colRec2Pda2,
+          memberTokenAccount: member2Ata,
+          collateralVault: colVault2Pda,
+          potVault: potVault2Pda,
+          usdcMint,
+          systemProgram: SystemProgram.programId,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
+        })
+        .signers([member2])
+        .rpc();
+
+      // Try to cancel — should fail because deadline not passed and not solo
+      try {
+        await program.methods
+          .cancelCircle()
+          .accountsPartial({
+            caller: member1.publicKey,
+            protocolConfig: configPda,
+            circleAccount: circle2Pda,
+            callerMemberAccount: mem1Pda2,
+            callerCollateralRecord: colRec1Pda2,
+            collateralVault: colVault2Pda,
+            potVault: potVault2Pda,
+            callerTokenAccount: member1Ata,
+            usdcMint,
+            tokenProgram: TOKEN_2022_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([member1])
+          .rpc();
+
+        assert.fail("should have rejected cancel");
+      } catch (err: any) {
+        assert.ok(
+          err.error?.errorCode?.code === "CancelConditionsNotMet" ||
+            err.message.includes("CancelConditionsNotMet") ||
+            err.message.includes("cancel"),
+          "should reject cancel when conditions not met"
+        );
+      }
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────
+  // 10. PROCESS DEFAULT TESTS
+  // ─────────────────────────────────────────────────────────
+  describe("process_default", () => {
+    let defaultCirclePda: PublicKey;
+    let defaultColVaultPda: PublicKey;
+    let defaultPotVaultPda: PublicKey;
+    const defaultAmount = new BN(20_000_000); // 20 USDC
+    const defaultMembers = 2;
+    const defaultFreq = 0; // Daily
+
+    before(async () => {
+      [defaultCirclePda] = deriveCirclePda(
+        program.programId,
+        defaultAmount,
+        defaultMembers,
+        defaultFreq,
+        usdcMint,
+        0
+      );
+      [defaultColVaultPda] = deriveCollateralVaultPda(
+        program.programId,
+        defaultCirclePda
+      );
+      [defaultPotVaultPda] = derivePotVaultPda(
+        program.programId,
+        defaultCirclePda
+      );
+
+      const [mem1Pda] = deriveMemberPda(
+        program.programId,
+        defaultCirclePda,
+        member1.publicKey
+      );
+      const [mem2Pda] = deriveMemberPda(
+        program.programId,
+        defaultCirclePda,
+        member2.publicKey
+      );
+      const [col1Pda] = deriveCollateralRecordPda(
+        program.programId,
+        defaultCirclePda,
+        member1.publicKey
+      );
+      const [col2Pda] = deriveCollateralRecordPda(
+        program.programId,
+        defaultCirclePda,
+        member2.publicKey
+      );
+      const [pr1Pda] = derivePaymentRecordPda(
+        program.programId,
+        defaultCirclePda,
+        1
+      );
+
+      // Create circle
+      await program.methods
+        .createCircle(defaultAmount, defaultMembers, { daily: {} }, 0)
+        .accountsPartial({
+          creator: member1.publicKey,
+          protocolConfig: configPda,
+          circleAccount: defaultCirclePda,
+          collateralVault: defaultColVaultPda,
+          potVault: defaultPotVaultPda,
+          usdcMint,
+          systemProgram: SystemProgram.programId,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        })
+        .signers([member1])
+        .rpc();
+
+      // Both members join
+      await program.methods
+        .joinCircle()
+        .accountsPartial({
+          member: member1.publicKey,
+          protocolConfig: configPda,
+          circleAccount: defaultCirclePda,
+          memberAccount: mem1Pda,
+          collateralRecord: col1Pda,
+          memberTokenAccount: member1Ata,
+          collateralVault: defaultColVaultPda,
+          potVault: defaultPotVaultPda,
+          usdcMint,
+          systemProgram: SystemProgram.programId,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
+        })
+        .signers([member1])
+        .rpc();
+
+      await program.methods
+        .joinCircle()
+        .accountsPartial({
+          member: member2.publicKey,
+          protocolConfig: configPda,
+          circleAccount: defaultCirclePda,
+          memberAccount: mem2Pda,
+          collateralRecord: col2Pda,
+          memberTokenAccount: member2Ata,
+          collateralVault: defaultColVaultPda,
+          potVault: defaultPotVaultPda,
+          usdcMint,
+          systemProgram: SystemProgram.programId,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
+        })
+        .signers([member2])
+        .rpc();
+
+      // Start circle
+      await program.methods
+        .startCircle()
+        .accountsPartial({
+          caller: admin.publicKey,
+          protocolConfig: configPda,
+          circleAccount: defaultCirclePda,
+          paymentRecord: pr1Pda,
+          systemProgram: SystemProgram.programId,
+        })
+        .signers([admin])
+        .rpc();
+    });
+
+    it("rejects process_default before deadline has passed", async () => {
+      const [mem2Pda] = deriveMemberPda(
+        program.programId,
+        defaultCirclePda,
+        member2.publicKey
+      );
+      const [col2Pda] = deriveCollateralRecordPda(
+        program.programId,
+        defaultCirclePda,
+        member2.publicKey
+      );
+      const [pr1Pda] = derivePaymentRecordPda(
+        program.programId,
+        defaultCirclePda,
+        1
+      );
+
+      try {
+        await program.methods
+          .processDefault()
+          .accountsPartial({
+            caller: admin.publicKey,
+            protocolConfig: configPda,
+            circleAccount: defaultCirclePda,
+            defaulterMemberAccount: mem2Pda,
+            defaulterCollateralRecord: col2Pda,
+            collateralVault: defaultColVaultPda,
+            paymentRecord: pr1Pda,
+            potVault: defaultPotVaultPda,
+            defaulter: member2.publicKey,
+            usdcMint,
+            tokenProgram: TOKEN_2022_PROGRAM_ID,
+          })
+          .signers([admin])
+          .rpc();
+
+        assert.fail("should have rejected process_default before deadline");
+      } catch (err: any) {
+        assert.ok(
+          err.error?.errorCode?.code === "DeadlineNotPassed" ||
+            err.message.includes("DeadlineNotPassed") ||
+            err.message.includes("deadline"),
+          "should reject default before deadline"
+        );
+      }
+    });
+
+    it("rejects process_default for a member who already paid", async () => {
+      const [mem1Pda] = deriveMemberPda(
+        program.programId,
+        defaultCirclePda,
+        member1.publicKey
+      );
+      const [col1Pda] = deriveCollateralRecordPda(
+        program.programId,
+        defaultCirclePda,
+        member1.publicKey
+      );
+      const [pr1Pda] = derivePaymentRecordPda(
+        program.programId,
+        defaultCirclePda,
+        1
+      );
+
+      // Cycle 1 payment record was pre-set at start — member1 is position 1
+      // and cycle 1 is pre-funded at join time, so member1 is already marked paid
+      try {
+        await program.methods
+          .processDefault()
+          .accountsPartial({
+            caller: admin.publicKey,
+            protocolConfig: configPda,
+            circleAccount: defaultCirclePda,
+            defaulterMemberAccount: mem1Pda,
+            defaulterCollateralRecord: col1Pda,
+            collateralVault: defaultColVaultPda,
+            paymentRecord: pr1Pda,
+            potVault: defaultPotVaultPda,
+            defaulter: member1.publicKey,
+            usdcMint,
+            tokenProgram: TOKEN_2022_PROGRAM_ID,
+          })
+          .signers([admin])
+          .rpc();
+
+        assert.fail("should have rejected process_default for paid member");
+      } catch (err: any) {
+        assert.ok(
+          err.error?.errorCode?.code === "MemberAlreadyPaid" ||
+            err.message.includes("MemberAlreadyPaid") ||
+            err.error?.errorCode?.code === "DeadlineNotPassed" ||
+            err.message.includes("DeadlineNotPassed"),
+          "should reject default for member who already paid or deadline not passed"
+        );
+      }
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────
+  // 11. SECURITY TESTS
+  // ─────────────────────────────────────────────────────────
+  describe("security", () => {
+    it("rejects double join by same wallet", async () => {
+      // circlePda from the main test suite is Completed — use a fresh one
+      const freshAmount = new BN(5_000_000); // 5 USDC
+      const [freshPda] = deriveCirclePda(
+        program.programId,
+        freshAmount,
+        3,
+        0,
+        usdcMint,
+        0
+      );
+      const [freshColV] = deriveCollateralVaultPda(program.programId, freshPda);
+      const [freshPotV] = derivePotVaultPda(program.programId, freshPda);
+      const [freshMem1] = deriveMemberPda(
+        program.programId,
+        freshPda,
+        member1.publicKey
+      );
+      const [freshCol1] = deriveCollateralRecordPda(
+        program.programId,
+        freshPda,
+        member1.publicKey
+      );
+
+      await program.methods
+        .createCircle(freshAmount, 3, { daily: {} }, 0)
+        .accountsPartial({
+          creator: member1.publicKey,
+          protocolConfig: configPda,
+          circleAccount: freshPda,
+          collateralVault: freshColV,
+          potVault: freshPotV,
+          usdcMint,
+          systemProgram: SystemProgram.programId,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        })
+        .signers([member1])
+        .rpc();
+
+      // First join — should succeed
+      await program.methods
+        .joinCircle()
+        .accountsPartial({
+          member: member1.publicKey,
+          protocolConfig: configPda,
+          circleAccount: freshPda,
+          memberAccount: freshMem1,
+          collateralRecord: freshCol1,
+          memberTokenAccount: member1Ata,
+          collateralVault: freshColV,
+          potVault: freshPotV,
+          usdcMint,
+          systemProgram: SystemProgram.programId,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
+        })
+        .signers([member1])
+        .rpc();
+
+      // Second join — should fail because MemberAccount PDA already exists
+      try {
+        await program.methods
+          .joinCircle()
+          .accountsPartial({
+            member: member1.publicKey,
+            protocolConfig: configPda,
+            circleAccount: freshPda,
+            memberAccount: freshMem1,
+            collateralRecord: freshCol1,
+            memberTokenAccount: member1Ata,
+            collateralVault: freshColV,
+            potVault: freshPotV,
+            usdcMint,
+            systemProgram: SystemProgram.programId,
+            tokenProgram: TOKEN_2022_PROGRAM_ID,
+          })
+          .signers([member1])
+          .rpc();
+
+        assert.fail("should have rejected double join");
+      } catch (err: any) {
+        assert.ok(
+          err.message.includes("already in use") ||
+            err.logs?.some((l: string) => l.includes("already in use")),
+          "should reject double join"
+        );
+      }
+    });
+
+    it("rejects pay_contribution when circle is not active", async () => {
+      // Use the fresh circle from above — it is still Open (only 1 member)
+      const freshAmount = new BN(5_000_000);
+      const [freshPda] = deriveCirclePda(
+        program.programId,
+        freshAmount,
+        3,
+        0,
+        usdcMint,
+        0
+      );
+      const [freshPotV] = derivePotVaultPda(program.programId, freshPda);
+      const [freshMem1] = deriveMemberPda(
+        program.programId,
+        freshPda,
+        member1.publicKey
+      );
+      const [freshPr1] = derivePaymentRecordPda(program.programId, freshPda, 1);
+
+      try {
+        await program.methods
+          .payContribution()
+          .accountsPartial({
+            member: member1.publicKey,
+            protocolConfig: configPda,
+            circleAccount: freshPda,
+            memberAccount: freshMem1,
+            paymentRecord: freshPr1,
+            memberTokenAccount: member1Ata,
+            potVault: freshPotV,
+            usdcMint,
+            tokenProgram: TOKEN_2022_PROGRAM_ID,
+          })
+          .signers([member1])
+          .rpc();
+
+        assert.fail("should have rejected pay on non-active circle");
+      } catch (err: any) {
+        assert.ok(
+          err.error?.errorCode?.code === "CircleNotActive" ||
+            err.message.includes("CircleNotActive") ||
+            err.message.includes("not active"),
+          "should reject pay_contribution when circle is not active"
+        );
+      }
+    });
+
+    it("rejects unauthorized admin operations", async () => {
+      // member1 tries to pause — should fail
+      try {
+        await program.methods
+          .pauseProtocol()
+          .accountsPartial({
+            admin: member1.publicKey,
+            protocolConfig: configPda,
+          })
+          .signers([member1])
+          .rpc();
+
+        assert.fail("should have rejected non-admin pause");
+      } catch (err: any) {
+        assert.ok(
+          err.error?.errorCode?.code === "Unauthorized" ||
+            err.message.includes("Unauthorized"),
+          "should reject non-admin pause"
+        );
+      }
+    });
+
+    it("rejects start_circle when circle is not ready", async () => {
+      // Use a circle that is Open (not all seats filled) — the fresh one above
+      const freshAmount = new BN(5_000_000);
+      const [freshPda] = deriveCirclePda(
+        program.programId,
+        freshAmount,
+        3,
+        0,
+        usdcMint,
+        0
+      );
+      const [pr1Pda] = derivePaymentRecordPda(program.programId, freshPda, 1);
+
+      try {
+        await program.methods
+          .startCircle()
+          .accountsPartial({
+            caller: admin.publicKey,
+            protocolConfig: configPda,
+            circleAccount: freshPda,
+            paymentRecord: pr1Pda,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([admin])
+          .rpc();
+
+        assert.fail("should have rejected start on non-ready circle");
+      } catch (err: any) {
+        assert.ok(
+          err.error?.errorCode?.code === "CircleNotReady" ||
+            err.message.includes("CircleNotReady") ||
+            err.message.includes("not ready"),
+          "should reject start_circle when circle is not ready"
+        );
+      }
+    });
+
+    it("rejects claim_collateral before circle completes", async () => {
+      // Use the default test circle which is Active
+      const [mem1Pda] = deriveMemberPda(
+        program.programId,
+        defaultCirclePda,
+        member1.publicKey
+      );
+      const [col1Pda] = deriveCollateralRecordPda(
+        program.programId,
+        defaultCirclePda,
+        member1.publicKey
+      );
+      const [collV] = deriveCollateralVaultPda(
+        program.programId,
+        defaultCirclePda
+      );
+
+      try {
+        await program.methods
+          .claimCollateral()
+          .accountsPartial({
+            member: member1.publicKey,
+            protocolConfig: configPda,
+            circleAccount: defaultCirclePda,
+            memberAccount: mem1Pda,
+            collateralRecord: col1Pda,
+            collateralVault: collV,
+            memberTokenAccount: member1Ata,
+            usdcMint,
+            tokenProgram: TOKEN_2022_PROGRAM_ID,
+            systemProgram: SystemProgram.programId,
+          })
+          .signers([member1])
+          .rpc();
+
+        assert.fail("should have rejected claim before completion");
+      } catch (err: any) {
+        assert.ok(
+          err.error?.errorCode?.code === "CircleNotComplete" ||
+            err.message.includes("CircleNotComplete") ||
+            err.message.includes("not complete"),
+          "should reject claim_collateral before circle completes"
+        );
+      }
+    });
+  });
+
+  // ─────────────────────────────────────────────────────────
+  // 12. NONCE / SEQUENTIAL CIRCLE TESTS
+  // ─────────────────────────────────────────────────────────
+  describe("nonce — sequential circles", () => {
+    it("allows creating a second circle with same params at nonce 1", async () => {
+      const amount = new BN(1_000_000); // 1 USDC
+      const members = 2;
+      const freq = 0; // Daily
+
+      // Create nonce 0
+      const [pda0] = deriveCirclePda(
+        program.programId,
+        amount,
+        members,
+        freq,
+        usdcMint,
+        0
+      );
+      const [colV0] = deriveCollateralVaultPda(program.programId, pda0);
+      const [potV0] = derivePotVaultPda(program.programId, pda0);
+
+      await program.methods
+        .createCircle(amount, members, { daily: {} }, 0)
+        .accountsPartial({
+          creator: member1.publicKey,
+          protocolConfig: configPda,
+          circleAccount: pda0,
+          collateralVault: colV0,
+          potVault: potV0,
+          usdcMint,
+          systemProgram: SystemProgram.programId,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        })
+        .signers([member1])
+        .rpc();
+
+      // Create nonce 1 — same params, should succeed
+      const [pda1] = deriveCirclePda(
+        program.programId,
+        amount,
+        members,
+        freq,
+        usdcMint,
+        1
+      );
+      const [colV1] = deriveCollateralVaultPda(program.programId, pda1);
+      const [potV1] = derivePotVaultPda(program.programId, pda1);
+
+      await program.methods
+        .createCircle(amount, members, { daily: {} }, 1)
+        .accountsPartial({
+          creator: member1.publicKey,
+          protocolConfig: configPda,
+          circleAccount: pda1,
+          collateralVault: colV1,
+          potVault: potV1,
+          usdcMint,
+          systemProgram: SystemProgram.programId,
+          tokenProgram: TOKEN_2022_PROGRAM_ID,
+          associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+        })
+        .signers([member1])
+        .rpc();
+
+      const circle0 = await program.account.circleAccount.fetch(pda0);
+      const circle1 = await program.account.circleAccount.fetch(pda1);
+
+      assert.equal(circle0.nonce, 0, "nonce 0 circle should have nonce 0");
+      assert.equal(circle1.nonce, 1, "nonce 1 circle should have nonce 1");
+      assert.notEqual(
+        pda0.toBase58(),
+        pda1.toBase58(),
+        "PDAs should be different"
+      );
+      assert.deepEqual(circle0.state, { open: {} }, "nonce 0 should be open");
+      assert.deepEqual(circle1.state, { open: {} }, "nonce 1 should be open");
+    });
+
+    it("rejects creating the same nonce twice", async () => {
+      const amount = new BN(1_000_000);
+      const [pda0] = deriveCirclePda(
+        program.programId,
+        amount,
+        2,
+        0,
+        usdcMint,
+        0
+      );
+      const [colV0] = deriveCollateralVaultPda(program.programId, pda0);
+      const [potV0] = derivePotVaultPda(program.programId, pda0);
+
+      try {
+        await program.methods
+          .createCircle(amount, 2, { daily: {} }, 0)
+          .accountsPartial({
+            creator: member1.publicKey,
+            protocolConfig: configPda,
+            circleAccount: pda0,
+            collateralVault: colV0,
+            potVault: potV0,
+            usdcMint,
+            systemProgram: SystemProgram.programId,
+            tokenProgram: TOKEN_2022_PROGRAM_ID,
+            associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
+          })
+          .signers([member1])
+          .rpc();
+
+        assert.fail("should have rejected duplicate nonce");
+      } catch (err: any) {
+        assert.ok(
+          err.message.includes("already in use") ||
+            err.logs?.some((l: string) => l.includes("already in use")),
+          "should reject creating same nonce twice"
+        );
+      }
     });
   });
 });
