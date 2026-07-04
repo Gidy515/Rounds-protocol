@@ -479,3 +479,11 @@ PROGRAM_ID = 7BBvnkQ4AKMFU6EfWvScSqi69eu9TjLoDzpmzG8ZeFhN
 ## Architecture Design
 
 📄 [Architectural diagram](assets/Rounds%20Protocol%20—%20Architecture%20Diagrams.pdf)
+
+<p align="center">
+<img src="/assets/Screenshot from 2026-07-03 23-01-50.png">
+</p>
+
+<p align="center">
+<img src="/assets/Screenshot from 2026-07-03 23-02-03.png">
+</p>
