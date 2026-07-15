@@ -1,5 +1,3 @@
-Here is the updated README in plain text:
-
 ---
 
 # Rounds Protocol
