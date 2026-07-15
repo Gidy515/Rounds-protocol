@@ -1,464 +1,303 @@
+Here is the updated README in plain text:
+
+---
+
 # Rounds Protocol
 
 ## Overview
 
-Rounds Protocol is a decentralized Rotating Savings and Credit Association (ROSCA) built on Solana using Rust and Anchor.
+Rounds Protocol is a trustless, non-custodial Rotating Savings and Credit Association (ROSCA) built on Solana using Rust and the Anchor framework.
 
-The protocol enables groups of users to form onchain savings circles where members contribute USDC periodically and receive pooled funds according to a predefined payout schedule.
+The protocol enables groups of participants to form onchain savings circles where members contribute USDC periodically and receive the pooled pot according to a predefined payout schedule — enforced entirely by smart contracts with no human intermediary.
 
-By replacing social trust with smart contract enforcement and collateral-backed guarantees, Rounds allows savings circles to operate transparently, autonomously, and without intermediaries.
+By replacing social trust with collateral-backed smart contract enforcement, Rounds allows savings circles to operate transparently, autonomously, and at internet scale. Locked collateral earns yield via Kamino Finance, turning a traditionally zero-sum savings instrument into a positive-sum one where participants earn while they save.
 
-Traditional ROSCAs such as Adashe, Esusu, Ajo, Susu, Chit Funds, Tandas, and Hui rely on social trust and manual coordination. Rounds brings this centuries-old financial primitive onchain, enabling participants anywhere in the world to save collectively with verifiable rules and automated enforcement.
-
----
-
-# The Problem
-
-Rotating savings groups are one of the most widely used financial tools globally.
-
-However, traditional ROSCAs suffer from several limitations:
-
-- Members can default after receiving their payout.
-- Group organizers act as trusted intermediaries.
-- Contributions are tracked manually.
-- Records are often opaque and difficult to audit.
-- Disputes require human intervention.
-- Participants have limited recourse when members disappear.
-
-These trust assumptions limit scalability and introduce operational risk.
-
-Rounds solves these problems through smart contracts.
+Traditional ROSCAs such as Adashe, Esusu, Ajo, Susu, Chit Funds, Tandas, and Hui rely on social trust and manual coordination. Rounds brings this centuries-old financial primitive onchain, enabling participants anywhere in the world to save collectively with verifiable rules, automated enforcement, and yield on idle capital.
 
 ---
 
-# How Rounds Works
+## The Problem
 
-A savings circle consists of a fixed number of members.
+Rotating savings groups are one of the most widely used financial tools globally, facilitating hundreds of billions of dollars in annual economic activity. Despite this scale, they remain almost entirely absent from decentralized finance.
+
+Traditional ROSCAs suffer from several structural limitations:
+
+Members can default after receiving their payout with no enforceable consequence. Group organizers act as trusted intermediaries who hold funds and coordinate manually. Contributions are tracked informally with no audit trail. Records are opaque and difficult to verify. Disputes require human intervention with no guaranteed resolution. Participants have limited recourse when members disappear. Capital sits idle throughout the circle — no yield, no productivity.
+
+These trust assumptions limit scalability, introduce operational risk, and exclude ROSCAs from the broader DeFi ecosystem.
+
+DeFi has built lending, trading, staking, liquid staking, perpetual markets, and structured products. It has not built a trustless primitive for cooperative savings and rotating liquidity. Rounds fills that gap.
+
+---
+
+## How Rounds Works
+
+A savings circle consists of a fixed number of members — between 2 and 20 — who agree on a contribution amount and payout frequency before the circle begins.
 
 Each member agrees to:
 
 1. Contribute a fixed amount of USDC every cycle.
-2. Lock collateral when joining.
-3. Receive exactly one payout during the lifetime of the circle.
+2. Lock collateral when joining, proportional to their payout position.
+3. Receive exactly one pot payout during the lifetime of the circle.
 4. Continue contributing until all members have received their payout.
 
-The protocol enforces these rules automatically.
+Locked collateral earns yield via Kamino Finance throughout the circle's lifetime. Members earn passively while fulfilling their savings obligations.
+
+The protocol enforces all rules automatically. No organizer, no intermediary, no trusted party.
 
 ---
 
-# Example
+## Collateral System
 
-Assume:
+The collateral requirement for a member at position p in a circle with N members and contribution amount C is:
 
-- 10 members
-- Contribution = 100 USDC
-- Weekly frequency
+collateral_required = (N - p) × C
 
-Every member deposits:
+Position 1 locks the most collateral and receives the pot first. Position N locks zero collateral and receives the pot last. This sliding-scale design means early recipients put up proportionally more capital to compensate for the trust the group extends them.
 
-- 100 USDC first contribution
-- 100 USDC collateral
+The collateral invariant that always holds: a member's locked collateral is always greater than or equal to their remaining contribution obligations. This guarantees the pot is always fully funded regardless of member behavior.
 
-Total joining deposit:
-
-200 USDC
-
-When all 10 members join:
-
-Cycle 1 pot:
-
-10 × 100 USDC = 1,000 USDC
-
-The member in Position 1 receives the first payout.
-
-The circle then advances to Cycle 2.
-
-All remaining active members contribute again.
-
-Another 1,000 USDC pot is formed and paid to Position 2.
-
-This process repeats until every active member has received their payout.
+If a member misses a payment, a permissionless keeper instruction seizes exactly one contribution worth of their collateral and deposits it into the pot. The pot recipient is paid in full. If a member exhausts their collateral through repeated defaults they are removed from the circle and the group restructures around the remaining members.
 
 ---
 
-# Core Design Principles
+## Yield on Collateral
 
-## Trustless Operation
+Phase 1 displays live yield projections using real APY data fetched from Kamino Finance's mainnet USDC lending market. Members can see exactly what their locked collateral would earn at current market rates.
 
-No organizer controls funds.
+Phase 2 deposits locked collateral directly into Kamino Finance K-Lend via CPI (Cross-Program Invocation). The protocol holds kUSDC receipt tokens on behalf of members. Yield accrues continuously throughout the circle lifetime. When a member claims collateral after circle completion, they receive their original USDC plus all accumulated yield — automatically, with no action required beyond the standard claim instruction.
 
-All assets are held inside program-owned vaults controlled by PDAs.
+At current Kamino USDC supply APY of approximately 5 to 9 percent, a 10-member 100 USDC circle with 4,500 USDC in total locked collateral earns between 225 and 405 USDC in annual yield. This turns the circle from a zero-sum savings rotation into a positive-sum instrument where every participant earns yield simply by participating.
 
-## Collateral Backing
-
-Every member locks collateral when joining.
-
-If a member defaults, their collateral can be seized and used to cover missed obligations.
-
-## Permissionless Execution
-
-Operational actions can be executed by anyone.
-
-No centralized keeper infrastructure is required.
-
-## Transparency
-
-All circle state, payments, defaults, and payouts are recorded onchain.
-
-## Deterministic Payout Order
-
-Members receive payouts according to their assigned position.
-
-Position assignment occurs when joining.
+This is the first ROSCA implementation where locked collateral earns yield while the circle runs.
 
 ---
 
-# Circle Lifecycle
+## Example
 
-## 1. Protocol Initialization
+Assume a 10-member circle with 100 USDC contributions and weekly frequency.
 
-Admin deploys and initializes the protocol.
+When members join, position 1 locks 900 USDC collateral plus pays 100 USDC as the cycle 1 contribution. Position 2 locks 800 USDC collateral and pays a joining premium. Each subsequent position locks progressively less collateral down to position 10 which locks zero collateral.
 
-Creates:
+Total collateral locked across the circle: 4,500 USDC.
 
-- ProtocolConfig PDA
-- Treasury Vault PDA
+Every week, all active members contribute 100 USDC. The pot of 1,000 USDC is disbursed to the current cycle's recipient. The cycle advances. This repeats for 10 cycles until every member has received exactly one pot payout.
 
-Stores:
-
-- Admin address
-- Protocol fee
-- Pause status
+Throughout all 10 cycles, the 4,500 USDC in locked collateral is deployed into Kamino Finance earning yield. When each member claims their collateral after the circle completes, they receive their original collateral plus their share of the yield earned.
 
 ---
 
-## 2. Create Circle
+## Core Design Principles
 
-A user creates a savings circle by specifying:
+### Trustless Operation
 
-- Contribution amount
-- Total member count
-- Frequency
-- USDC mint
+No organizer controls funds. All assets are held in smart contract vaults controlled by the program. The admin key cannot access member funds.
 
-Examples:
+### Collateral Backing
 
-- 50 USDC weekly
-- 20 USDC monthly
-- 100 USDC biweekly
+Every member locks collateral when joining proportional to their payout position. If a member defaults, their collateral is seized automatically to cover the missed payment. The pot is always fully funded.
 
-The protocol creates:
+### Yield-Bearing Collateral
 
-- CircleAccount PDA
-- Collateral Vault PDA
-- Pot Vault PDA
+Locked collateral is productive. Rather than sitting idle, it earns yield via Kamino Finance throughout the circle's lifetime. Yield is returned to members when they claim collateral after circle completion.
 
-The circle enters:
+### Permissionless Execution
 
-Open State
+All keeper actions — starting circles, processing defaults, disbursing pots — can be executed by any wallet. No centralized keeper infrastructure is required. This mirrors the liquidation bot model used in lending protocols like Aave and Kamino.
 
----
+### Transparency
 
-## 3. Join Circle
+All circle state, payments, defaults, yields, and payouts are recorded onchain and publicly verifiable by anyone.
 
-Members join the circle.
+### Deterministic Payout Order
 
-Each member:
+Members receive payouts according to their assigned position. Position assignment occurs at join time and is immutable.
 
-- Receives a position
-- Creates a MemberAccount
-- Deposits collateral
-- Deposits first-cycle contribution
+### Sequential Circles
 
-Funds are split automatically:
-
-Contribution → Pot Vault
-
-Collateral → Collateral Vault
-
-When the circle reaches capacity:
-
-Open → Ready
+Multiple circles with identical parameters can coexist via a nonce seed structure. When an open circle exists for a given parameter set, new participants are directed to join it. When it fills, a new circle opens at the next nonce. This maximizes circle utilization while preventing parameter collisions.
 
 ---
 
-## 4. Start Circle
+## Circle Lifecycle
 
-Anyone can start a ready circle.
+### 1. Protocol Initialization
 
-The protocol:
+Admin deploys and initializes the protocol. Creates the ProtocolConfig account and TreasuryVault. Stores the admin address, protocol fee, and pause status.
 
-- Transitions Ready → Active
-- Sets Cycle 1
-- Creates PaymentRecord for Cycle 1
-- Marks all members as paid for Cycle 1
+### 2. Create Circle
 
-Cycle 1 contributions were already collected during joining.
+A user creates a savings circle by specifying the contribution amount, total member count, frequency (daily, weekly, biweekly, or monthly), and USDC mint.
 
-No additional payments are required.
+The protocol creates the CircleAccount, CollateralVault, and PotVault for the circle. The circle enters Open state. The frontend automatically discovers the correct nonce for the new circle by checking existing circles at nonces 0 through 254 and directing the user to join any open circle before creating a new one.
 
----
+### 3. Join Circle
 
-## 5. Disburse Pot
+Members join the circle and receive a sequential position. Each member creates a MemberAccount and CollateralRecord, deposits collateral into the CollateralVault, and deposits their first-cycle contribution into the PotVault. In Phase 2, collateral is immediately deployed into Kamino Finance to begin earning yield.
 
-Anyone may trigger disbursement.
+When the final seat fills, the circle transitions from Open to Ready.
 
-The protocol:
+### 4. Start Circle
 
-- Verifies all required contributions are present
-- Deducts protocol fee
-- Sends payout to current recipient
-- Advances the circle
+Any wallet can start a Ready circle. The protocol transitions the circle from Ready to Active, sets cycle 1 as the current cycle, creates the PaymentRecord for cycle 1, and marks all members as paid for cycle 1 since contributions were collected at join time.
 
-If final cycle:
+### 5. Disburse Pot
 
-Active → Completed
+Any wallet can trigger disbursement once all active members have paid. The protocol verifies all PaymentRecord bits are set, deducts the protocol fee and routes it to the TreasuryVault, sends the remaining pot to the current cycle's recipient, and advances the cycle counter. If this was the final cycle the circle transitions from Active to Completed.
 
-Otherwise:
+### 6. Future Contributions
 
-Current cycle increments.
+For cycles 2 through N, members call pay_contribution to transfer their contribution into the PotVault. The PaymentRecord is updated. When all required payments are recorded, disburse_pot may execute.
 
----
+### 7. Default Handling
 
-## 6. Future Contributions
+If a member fails to contribute before the cycle deadline, process_default may be called by any wallet. The protocol verifies the deadline has passed and the member has not paid, seizes exactly one contribution worth of their collateral from the CollateralVault and transfers it to the PotVault, sets the member's bit in the PaymentRecord, and checks if the member should be kicked. A member is kicked only when their collateral reaches zero and rounds remain. A single default does not remove a member — they must exhaust all their collateral through repeated defaults before being removed.
 
-For cycles 2 through N:
+### 8. Circle Completion
 
-Members call:
+After the final payout the circle state transitions to Completed. In Phase 2 the protocol initiates withdrawal of all collateral positions from Kamino Finance, collecting principal plus accumulated yield.
 
-pay_contribution
+### 9. Collateral Claims
 
-The contribution is transferred into the Pot Vault.
+After circle completion, members call claim_collateral to recover their remaining locked collateral plus any yield earned. Members who never defaulted recover 100 percent of their collateral plus yield. Members who defaulted recover their remaining collateral after seizures plus yield on the remaining amount. Members who were kicked recover nothing.
 
-PaymentRecord is updated.
+### 10. Cancellation
 
-When all required payments are recorded:
-
-disburse_pot may execute.
+An Open circle can be cancelled if the caller is the only member (solo cancel, no deadline required) or if the cancel deadline of approximately 24 hours has passed and the circle has not filled. The cancel instruction returns all funds to the caller and transitions the circle to Cancelled state.
 
 ---
 
-## 7. Default Handling
+## Account Architecture
 
-If a member fails to contribute before the deadline:
+### ProtocolConfig
 
-process_default may be called.
+Global protocol configuration. Stores the admin address, protocol fee in basis points (maximum 10 percent), and pause status.
 
-The protocol:
+### CircleAccount
 
-- Marks the member as kicked
-- Seizes collateral
-- Covers the missed contribution
-- Updates payment tracking
+Primary circle state. Stores the contribution amount, total and active member counts, payout frequency, current cycle, payment deadline, cancel deadline, circle state, creation slot, start slot, completion slot, and nonce.
 
-The circle continues operating.
+### MemberAccount
 
-A single default cannot halt the group.
+One account per member per circle. Stores the member's wallet address, payout position, current collateral locked, payout received status, default status, and kick status.
 
----
+### CollateralRecord
 
-## 8. Circle Completion
+Audit trail for a member's collateral movements. Stores total collateral locked at join time, total collateral released to member, and total collateral seized due to defaults. The invariant total_locked equals total_released plus total_slashed plus current collateral_locked is permanently verifiable onchain.
 
-After the final payout:
+### PaymentRecord
 
-Circle State → Completed
-
-The protocol records:
-
-- Completion slot
-- Final cycle
-
-Remaining collateral becomes claimable.
+Tracks payment status for a single cycle using a compact 64-bit bitmask. Position p corresponds to bit p minus 1. When set, the member has paid either voluntarily or via default processing.
 
 ---
 
-## 9. Collateral Claims
+## Vault Architecture
 
-After circle completion:
+### Pot Vault
 
-Members may reclaim remaining collateral.
+Holds contribution funds for the current cycle. Filled by member contributions and collateral seizures. Empties completely after every disbursement.
 
-This prevents collateral from remaining locked indefinitely.
+### Collateral Vault
 
----
+Holds all member collateral for the circle. In Phase 2, balance is deployed to Kamino Finance and the vault holds kUSDC receipt tokens instead of USDC directly. Moves only on default (partial seizure to Pot Vault) or circle completion (full withdrawal from Kamino and return to members).
 
-# Account Architecture
+### Treasury Vault
 
-## ProtocolConfig
-
-Global protocol configuration.
-
-Stores:
-
-- Admin
-- Fee rate
-- Pause status
+Receives protocol fees from every disbursement. Controlled exclusively by the protocol admin.
 
 ---
 
-## CircleAccount
+## Yield Integration
 
-Primary circle state.
+### Phase 1 — Live Projections
 
-Stores:
+The frontend displays real-time yield projections for every member's locked collateral. APY data is fetched live from Kamino Finance's mainnet USDC lending market API. Projections show what collateral would earn at current market rates, estimated yield earned so far in active circles, and projected annual yield.
 
-- Contribution amount
-- Member count
-- Active members
-- Frequency
-- Current cycle
-- Deadlines
-- Circle state
+### Phase 2 — On-Chain Yield via Kamino CPI
 
----
+The join_circle instruction CPIs into Kamino Finance K-Lend to deposit USDC collateral. The program holds kUSDC receipt tokens in the CollateralVault on behalf of members. Yield accrues to the kUSDC position automatically. The claim_collateral instruction CPIs into Kamino to redeem kUSDC for USDC plus accumulated yield and transfers the full amount to the member. No member action is required beyond the standard join and claim flow.
 
-## MemberAccount
+### Why Kamino Finance
 
-One account per member per circle.
-
-Stores:
-
-- Wallet address
-- Position
-- Collateral amount
-- Default count
-- Payout status
-- Kick status
+Kamino is the largest lending protocol on Solana with approximately 3.2 billion USD in TVL. The USDC supply APY has ranged between 4 and 9 percent in 2026. Kamino has been audited by OtterSec, Halborn, and Offside Labs and has maintained a strong security record. The USDC market is deep and liquid, making it reliable infrastructure for collateral yield rather than a speculative yield source.
 
 ---
 
-## PaymentRecord
+## Circle States
 
-Tracks payment status for a single cycle.
-
-Uses a compact u64 bitmask.
-
-Example:
-
-Position 1 paid → Bit 0
-
-Position 2 paid → Bit 1
-
-Position 3 paid → Bit 2
-
-This allows payment verification with minimal storage.
+Open — accepting members.
+Ready — circle full, waiting to start.
+Active — cycles running, contributions and disbursements in progress.
+Completed — all payouts completed, collateral claimable.
+Cancelled — circle failed to fill before the cancel deadline.
 
 ---
 
-# Vault Architecture
+## Security Model
 
-## Pot Vault
+Rounds uses multiple layers of protection including program-derived account ownership, seed verification on all accounts, Anchor account constraint validation, collateral-backed guarantees enforced at every state transition, permissionless execution with onchain eligibility checks, overflow-safe arithmetic throughout, explicit state machine with validated transitions, token mint validation on all transfers, and authority validation on member-specific instructions.
 
-Holds contribution funds.
-
-Used to pay cycle recipients.
-
-Empties after every disbursement.
+No participant can skip contribution requirements, claim multiple payouts, modify payout order, withdraw protocol funds, steal collateral, or front-run disbursements without satisfying protocol rules enforced by the smart contract.
 
 ---
 
-## Collateral Vault
+## Protocol Fees
 
-Holds member collateral.
-
-Used only when:
-
-- Default occurs
-- Circle completes
+Each disbursement includes a protocol fee calculated as pot times protocol_fee_bps divided by 10,000. The fee is routed to the TreasuryVault. The remaining amount is sent to the recipient. The maximum protocol fee is 10 percent (1000 basis points). The default fee at launch is 50 basis points (0.5 percent).
 
 ---
 
-## Treasury Vault
+## Technology Stack
 
-Receives protocol fees.
-
-Controlled exclusively by protocol governance.
+Solana blockchain, Rust programming language, Anchor framework version 0.30 and above, SPL Token 2022 compatible interfaces, program-derived addresses for all accounts and vaults, Kamino Finance K-Lend for collateral yield (Phase 2), Next.js 15 and TypeScript for the frontend, Solana Wallet Adapter for wallet connectivity.
 
 ---
 
-# States
+## Test Suite
 
-## Open
+The protocol ships with 39 tests covering the full circle lifecycle from initialization through collateral claims, cancel flows, default processing and collateral seizure, member kick logic, security edge cases including double join and unauthorized instructions, nonce seed structure with sequential circle creation, and duplicate nonce rejection.
 
-Accepting members.
-
-## Ready
-
-Circle full.
-
-Waiting to start.
-
-## Active
-
-Currently operating.
-
-## Completed
-
-All payouts completed.
-
-## Cancelled
-
-Circle failed to fill before deadline.
+All 39 tests pass on localnet.
 
 ---
 
-# Security Model
+## Deployed Contracts
 
-Rounds uses multiple layers of protection:
+Program ID: 7BBvnkQ4AKMFU6EfWvScSqi69eu9TjLoDzpmzG8ZeFhN
 
-- PDA ownership
-- Seed verification
-- Anchor account constraints
-- Collateral-backed guarantees
-- Permissionless execution
-- Overflow-safe arithmetic
-- Explicit state transitions
-- Token mint validation
-- Authority validation
+Protocol Config: GA1F8dEDGnzBPhmrktT4MQAZLBWbLJDA1jHUuzvRSJZ7
 
-No participant can:
+Treasury Vault: 7j4VdqEGyjBdsYdy2E2oUuGf7pwnHERfxTLfpHwEYYGx
 
-- Skip contribution requirements
-- Claim multiple payouts
-- Modify payout order
-- Withdraw protocol funds
-- Steal collateral
+USDC Mint (devnet): 6dLsmJXz5P9eoWDtmyoYEZigejtN3tyBiZMpEiLsD7sh
 
-without satisfying protocol rules.
+Network: Solana Devnet — Mainnet launch pending security audit.
 
 ---
 
-# Protocol Fees
+## Vision
 
-Each disbursement may include a protocol fee.
+Rounds transforms one of humanity's oldest financial coordination mechanisms into an open, transparent, programmable, and yield-bearing financial primitive.
 
-Fee calculation:
+ROSCAs have operated for centuries without blockchain infrastructure not because participants do not want it but because no one built the right primitive. Rounds builds it.
 
-fee = pot × protocol_fee_bps / 10,000
+The immediate goal is a trustless ROSCA on Solana with yield-bearing collateral. The longer-term vision is a composable primitive that supports circle positions as transferable NFTs, multi-asset collateral including tokenized RWAs, undercollateralized circles for identity-verified participants, keeper incentive markets, and mobile-first interfaces targeting the communities that use ROSCAs most heavily across West Africa, East Africa, and the global diaspora.
 
-The fee is routed to the Treasury Vault.
-
-The remaining amount is sent to the recipient.
+DeFi has brought lending, trading, staking, and derivatives onchain. Rounds brings cooperative savings.
 
 ---
 
-# Technology Stack
+## Important Docs
 
-- Solana
-- Rust
-- Anchor Framework
-- SPL Token-2022 Compatible Interfaces (SPL Token Interface)
-- Program Derived Addresses (PDAs)
+Letter of intent: assets/Turbin3_capstone_project_definition_and_market_analysis.pdf
+
+User stories and onchain requirements: assets/rounds_protocol_user_stories_and_onchain_requirements.pdf
+
+Architecture diagrams: assets/Rounds Protocol Architecture Diagrams.pdf
 
 ---
 
-# Vision
-
-Rounds transforms one of humanity's oldest financial coordination mechanisms into an open, transparent, and programmable financial primitive.
-
-By combining cooperative savings with smart contract enforcement, Rounds enables trustless community finance at internet scale while preserving the simplicity that made ROSCAs successful for generations.
-
-PROGRAM_ID = 7BBvnkQ4AKMFU6EfWvScSqi69eu9TjLoDzpmzG8ZeFhN
+Rounds Protocol — Trustless Rotating Savings on Solana.
 
 ## Rounds protocol tests suit
 
